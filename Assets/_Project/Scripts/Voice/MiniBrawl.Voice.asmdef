@@ -1,0 +1,14 @@
+{
+    "name": "MiniBrawl.Voice",
+    "rootNamespace": "MiniBrawl.Voice",
+    "references": ["MiniBrawl.Core", "MiniBrawl.Networking"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

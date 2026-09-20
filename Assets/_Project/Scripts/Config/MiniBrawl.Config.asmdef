@@ -1,0 +1,14 @@
+{
+    "name": "MiniBrawl.Config",
+    "rootNamespace": "MiniBrawl.Config",
+    "references": ["MiniBrawl.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

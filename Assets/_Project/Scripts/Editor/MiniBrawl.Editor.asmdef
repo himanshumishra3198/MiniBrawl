@@ -1,0 +1,7 @@
+{
+    "name": "MiniBrawl.Editor",
+    "rootNamespace": "MiniBrawl.Editor",
+    "references": ["MiniBrawl.Core", "MiniBrawl.Config", "MiniBrawl.Gameplay"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": []
+}
