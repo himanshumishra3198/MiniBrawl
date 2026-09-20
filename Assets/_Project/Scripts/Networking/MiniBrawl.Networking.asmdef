@@ -1,7 +1,13 @@
 {
     "name": "MiniBrawl.Networking",
     "rootNamespace": "MiniBrawl.Networking",
-    "references": ["MiniBrawl.Core", "MiniBrawl.Config", "MiniBrawl.Gameplay", "FishNet.Runtime"],
+    "references": [
+        "MiniBrawl.Core",
+        "MiniBrawl.Config",
+        "MiniBrawl.Gameplay",
+        "FishNet.Runtime",
+        "UnityEngine.UI"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

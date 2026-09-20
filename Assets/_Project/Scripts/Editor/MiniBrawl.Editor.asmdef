@@ -9,7 +9,9 @@
         "Unity.InputSystem",
         "UnityEngine.UI",
         "Unity.RenderPipelines.Universal.Runtime",
-        "Unity.RenderPipelines.Universal.2D.Runtime"
+        "Unity.RenderPipelines.Universal.2D.Runtime",
+        "MiniBrawl.Networking",
+        "FishNet.Runtime"
     ],
     "includePlatforms": [
         "Editor"

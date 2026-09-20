@@ -21,12 +21,12 @@ public static class PrototypeSceneBuilder
 {
     const string k_ScenePath  = "Assets/_Project/Scenes/10_Prototype.unity";
     const string k_SpritePath = "Assets/_Project/Art/Sprites/Square.png";
-    const string k_LevelLayer = "Level";
-    const string k_HittableLayer = "Hittable";
+    internal const string k_LevelLayer = "Level";
+    internal const string k_HittableLayer = "Hittable";
 
     static readonly Color k_Background = new Color(0.09f, 0.10f, 0.13f);
     static readonly Color k_LevelColor = new Color(0.30f, 0.34f, 0.42f);
-    static readonly Color k_PlayerColor = new Color(0.35f, 0.85f, 1f);
+    internal static readonly Color k_PlayerColor = new Color(0.35f, 0.85f, 1f);
     static readonly Color k_TargetColor = new Color(1f, 0.45f, 0.4f);
 
     [MenuItem("MiniBrawl/Build Prototype Scene")]
@@ -54,7 +54,7 @@ public static class PrototypeSceneBuilder
         Debug.Log($"[PrototypeSceneBuilder] Wrote {k_ScenePath} (player on layer mask {driver.LevelMask.value}).");
     }
 
-    static void BuildCamera()
+    internal static void BuildCamera()
     {
         var go = new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" };
         var cam = go.GetComponent<Camera>();
@@ -71,7 +71,7 @@ public static class PrototypeSceneBuilder
         light.intensity = 1f;
     }
 
-    static void BuildLevel(Sprite square, int layer)
+    internal static void BuildLevel(Sprite square, int layer)
     {
         var root = new GameObject("Level").transform;
 
@@ -86,7 +86,7 @@ public static class PrototypeSceneBuilder
         Block("Platform_C", new Vector2(0f, 3.2f),   new Vector2(4f, 0.6f), square, layer, root);
     }
 
-    static void Block(string name, Vector2 pos, Vector2 size, Sprite square, int layer, Transform parent)
+    internal static void Block(string name, Vector2 pos, Vector2 size, Sprite square, int layer, Transform parent)
     {
         var go = new GameObject(name) { layer = layer };
         go.transform.SetParent(parent, false);
@@ -100,7 +100,7 @@ public static class PrototypeSceneBuilder
         go.AddComponent<BoxCollider2D>().size = Vector2.one;   // 1x1 sprite, so scale sets world size
     }
 
-    static void BuildTargets(Sprite square, int hittableLayer)
+    internal static void BuildTargets(Sprite square, int hittableLayer)
     {
         var root = new GameObject("Targets").transform;
 
@@ -109,7 +109,7 @@ public static class PrototypeSceneBuilder
         Target("Target_B", new Vector2(6f, 1.4f), square, hittableLayer, root);
     }
 
-    static void Target(string name, Vector2 pos, Sprite square, int layer, Transform parent)
+    internal static void Target(string name, Vector2 pos, Sprite square, int layer, Transform parent)
     {
         var go = new GameObject(name) { layer = layer };
         go.transform.SetParent(parent, false);
@@ -205,7 +205,7 @@ public static class PrototypeSceneBuilder
         hud.Readout = readout;
     }
 
-    static void Stick(string name, string controlPath, Transform canvas, Sprite square,
+    internal static void Stick(string name, string controlPath, Transform canvas, Sprite square,
                       Vector2 anchor, Vector2 anchoredPos)
     {
         var stickBase = MakeImage(name, canvas, square, new Color(1f, 1f, 1f, 0.10f),
@@ -218,7 +218,7 @@ public static class PrototypeSceneBuilder
         stick.movementRange = 110f;
     }
 
-    static Image MakeImage(string name, Transform parent, Sprite sprite, Color color,
+    internal static Image MakeImage(string name, Transform parent, Sprite sprite, Color color,
                        Vector2 anchor, Vector2 anchoredPos, Vector2 size)
     {
         var go = new GameObject(name, typeof(RectTransform));
@@ -235,7 +235,7 @@ public static class PrototypeSceneBuilder
         return image;
     }
 
-    static Text Label(string name, Transform parent, int fontSize, TextAnchor alignment)
+    internal static Text Label(string name, Transform parent, int fontSize, TextAnchor alignment)
     {
         var go = new GameObject(name, typeof(RectTransform));
         go.transform.SetParent(parent, false);
@@ -250,7 +250,7 @@ public static class PrototypeSceneBuilder
         return text;
     }
 
-    static void Stretch(RectTransform rt)
+    internal static void Stretch(RectTransform rt)
     {
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
@@ -258,7 +258,7 @@ public static class PrototypeSceneBuilder
         rt.offsetMax = Vector2.zero;
     }
 
-    static Sprite EnsureSquareSprite()
+    internal static Sprite EnsureSquareSprite()
     {
         if (!File.Exists(k_SpritePath))
         {
@@ -285,7 +285,7 @@ public static class PrototypeSceneBuilder
         return AssetDatabase.LoadAssetAtPath<Sprite>(k_SpritePath);
     }
 
-    static int EnsureLayer(string name)
+    internal static int EnsureLayer(string name)
     {
         int existing = LayerMask.NameToLayer(name);
         if (existing != -1) return existing;
