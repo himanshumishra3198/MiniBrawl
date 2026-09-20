@@ -1,3 +1,4 @@
+using System;
 using MiniBrawl.Config;
 using UnityEngine;
 
@@ -23,6 +24,9 @@ namespace MiniBrawl.Gameplay.Player
         float m_Accumulator;
         uint m_Tick;
         int m_TicksThisFrame;
+
+        /// <summary>Raised once per simulation tick, after the motor has stepped.</summary>
+        public event Action<PlayerInput, float> Ticked;
 
         public PlayerState State => m_State;
         public PlayerInput LastInput => m_LastInput;
@@ -54,6 +58,9 @@ namespace MiniBrawl.Gameplay.Player
                 m_State = PlayerMotor.Simulate(m_State, m_LastInput, m_Config, m_World, dt);
                 m_Tick++;
                 m_TicksThisFrame++;
+
+                transform.position = m_State.Position;   // weapons cast from the post-move position
+                Ticked?.Invoke(m_LastInput, dt);
             }
 
             if (m_TicksThisFrame == maxCatchUpTicks) m_Accumulator = 0f;

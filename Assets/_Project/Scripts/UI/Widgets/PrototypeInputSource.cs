@@ -14,16 +14,42 @@ namespace MiniBrawl.UI.Widgets
     /// </summary>
     public sealed class PrototypeInputSource : MonoBehaviour, IPlayerInputSource
     {
+        const float k_AimDeadzone = 0.2f;
+
+        Vector2 m_Aim = Vector2.right;   // aim persists when the stick is released
+
         public PlayerInput Read(uint tick)
         {
             float moveX = 0f;
             bool jetpack = false;
+            bool fire = false;
 
             var pad = Gamepad.current;
             if (pad != null)
             {
                 moveX += pad.leftStick.x.ReadValue();
                 jetpack |= pad.buttonSouth.isPressed || pad.rightTrigger.isPressed;
+
+                // §14 item 3: the aim stick also pulls the trigger.
+                Vector2 aimStick = pad.rightStick.ReadValue();
+                if (aimStick.sqrMagnitude > k_AimDeadzone * k_AimDeadzone)
+                {
+                    m_Aim = aimStick.normalized;
+                    fire = true;
+                }
+            }
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.isPressed && Camera.main != null)
+            {
+                Vector3 screen = mouse.position.ReadValue();
+                screen.z = -Camera.main.transform.position.z;
+                Vector2 toCursor = (Vector2)Camera.main.ScreenToWorldPoint(screen) - (Vector2)transform.position;
+                if (toCursor.sqrMagnitude > 1e-4f)
+                {
+                    m_Aim = toCursor.normalized;
+                    fire = true;
+                }
             }
 
             var keyboard = Keyboard.current;
@@ -36,11 +62,16 @@ namespace MiniBrawl.UI.Widgets
 
             moveX = Mathf.Clamp(moveX, -1f, 1f);
 
+            byte buttons = 0;
+            if (jetpack) buttons |= PlayerInput.BtnJetpack;
+            if (fire) buttons |= PlayerInput.BtnFire;
+
             return new PlayerInput
             {
                 Tick = tick,
                 MoveX = (sbyte)Mathf.Clamp(Mathf.RoundToInt(moveX * 127f), -127, 127),
-                Buttons = (byte)(jetpack ? PlayerInput.BtnJetpack : 0),
+                AimAngle = PlayerInput.EncodeAim(m_Aim),
+                Buttons = buttons,
             };
         }
     }

@@ -1,5 +1,7 @@
 using System.IO;
+using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Player;
+using MiniBrawl.Gameplay.Weapons;
 using MiniBrawl.UI.Widgets;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -20,22 +22,26 @@ public static class PrototypeSceneBuilder
     const string k_ScenePath  = "Assets/_Project/Scenes/10_Prototype.unity";
     const string k_SpritePath = "Assets/_Project/Art/Sprites/Square.png";
     const string k_LevelLayer = "Level";
+    const string k_HittableLayer = "Hittable";
 
     static readonly Color k_Background = new Color(0.09f, 0.10f, 0.13f);
     static readonly Color k_LevelColor = new Color(0.30f, 0.34f, 0.42f);
     static readonly Color k_PlayerColor = new Color(0.35f, 0.85f, 1f);
+    static readonly Color k_TargetColor = new Color(1f, 0.45f, 0.4f);
 
     [MenuItem("MiniBrawl/Build Prototype Scene")]
     public static void Build()
     {
         int levelLayer = EnsureLayer(k_LevelLayer);
+        int hittableLayer = EnsureLayer(k_HittableLayer);
         Sprite square = EnsureSquareSprite();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         BuildCamera();
         BuildLevel(square, levelLayer);
-        var driver = BuildPlayer(square, levelLayer);
+        BuildTargets(square, hittableLayer);
+        var driver = BuildPlayer(square, levelLayer, hittableLayer);
         BuildHud(square);
 
         Directory.CreateDirectory(Path.GetDirectoryName(k_ScenePath));
@@ -94,7 +100,32 @@ public static class PrototypeSceneBuilder
         go.AddComponent<BoxCollider2D>().size = Vector2.one;   // 1x1 sprite, so scale sets world size
     }
 
-    static PlayerDriver BuildPlayer(Sprite square, int levelLayer)
+    static void BuildTargets(Sprite square, int hittableLayer)
+    {
+        var root = new GameObject("Targets").transform;
+
+        // Standing on Platform_A and Platform_B, so shots have to clear the geometry.
+        Target("Target_A", new Vector2(-6f, -1.6f), square, hittableLayer, root);
+        Target("Target_B", new Vector2(6f, 1.4f), square, hittableLayer, root);
+    }
+
+    static void Target(string name, Vector2 pos, Sprite square, int layer, Transform parent)
+    {
+        var go = new GameObject(name) { layer = layer };
+        go.transform.SetParent(parent, false);
+        go.transform.position = pos;
+        go.transform.localScale = new Vector3(0.8f, 1.2f, 1f);
+
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = square;
+        sr.color = k_TargetColor;
+        sr.sortingOrder = 5;
+
+        go.AddComponent<BoxCollider2D>().size = Vector2.one;
+        go.AddComponent<Damageable>();
+    }
+
+    static PlayerDriver BuildPlayer(Sprite square, int levelLayer, int hittableLayer)
     {
         var go = new GameObject("Player");
         go.transform.position = new Vector3(0f, -4f, 0f);
@@ -110,7 +141,29 @@ public static class PrototypeSceneBuilder
         var driver = go.AddComponent<PlayerDriver>();
         driver.LevelMask = 1 << levelLayer;
         go.AddComponent<PrototypeInputSource>();
+
+        var weapon = go.AddComponent<PlayerWeapon>();
+        weapon.HitMask = (1 << levelLayer) | (1 << hittableLayer);
+        weapon.AimLine = BuildAimLine();
         return driver;
+    }
+
+    static LineRenderer BuildAimLine()
+    {
+        // Unparented: as a child it would inherit the player's non-uniform scale and skew the line.
+        var line = new GameObject("AimLine").AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.widthMultiplier = 0.05f;
+        line.numCapVertices = 0;
+        line.textureMode = LineTextureMode.Stretch;
+        line.alignment = LineAlignment.View;
+        line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        line.receiveShadows = false;
+        line.sortingOrder = 20;
+        // Built-in sprite material: unlit, always included in the build.
+        line.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
+        return line;
     }
 
     static void BuildHud(Sprite square)
@@ -125,19 +178,14 @@ public static class PrototypeSceneBuilder
         scaler.matchWidthOrHeight = 0.5f;
         var canvas = canvasGo.transform;
 
-        // Left stick: static ring with a draggable handle.
-        var stickBase = MakeImage("LeftStick", canvas, square, new Color(1f, 1f, 1f, 0.10f),
-            new Vector2(0f, 0f), new Vector2(300f, 300f), new Vector2(320f, 320f));
-        var handle = MakeImage("Handle", stickBase.transform, square, new Color(1f, 1f, 1f, 0.35f),
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(150f, 150f));
-        var stick = handle.gameObject.AddComponent<OnScreenStick>();
-        stick.controlPath = "<Gamepad>/leftStick";
-        stick.movementRange = 110f;
+        // Left thumb drives movement and the jetpack; right thumb aims, which also fires.
+        Stick("LeftStick", "<Gamepad>/leftStick", canvas, square, new Vector2(0f, 0f), new Vector2(300f, 300f));
+        Stick("RightStick", "<Gamepad>/rightStick", canvas, square, new Vector2(1f, 0f), new Vector2(-300f, 300f));
 
         var jet = MakeImage("JetpackButton", canvas, square, new Color(0.35f, 0.85f, 1f, 0.25f),
-            new Vector2(1f, 0f), new Vector2(-300f, 300f), new Vector2(300f, 300f));
+            new Vector2(0f, 0f), new Vector2(690f, 250f), new Vector2(240f, 240f));
         jet.gameObject.AddComponent<OnScreenButton>().controlPath = "<Gamepad>/buttonSouth";
-        var jetLabel = Label("Label", jet.transform, 44, TextAnchor.MiddleCenter);
+        var jetLabel = Label("Label", jet.transform, 40, TextAnchor.MiddleCenter);
         Stretch(jetLabel.rectTransform);
         jetLabel.text = "JET";
 
@@ -161,6 +209,19 @@ public static class PrototypeSceneBuilder
         var hud = canvasGo.AddComponent<PrototypeHud>();
         hud.FuelFill = fuelFill;
         hud.Readout = readout;
+    }
+
+    static void Stick(string name, string controlPath, Transform canvas, Sprite square,
+                      Vector2 anchor, Vector2 anchoredPos)
+    {
+        var stickBase = MakeImage(name, canvas, square, new Color(1f, 1f, 1f, 0.10f),
+            anchor, anchoredPos, new Vector2(320f, 320f));
+        var handle = MakeImage("Handle", stickBase.transform, square, new Color(1f, 1f, 1f, 0.35f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(150f, 150f));
+
+        var stick = handle.gameObject.AddComponent<OnScreenStick>();
+        stick.controlPath = controlPath;
+        stick.movementRange = 110f;
     }
 
     static Image MakeImage(string name, Transform parent, Sprite sprite, Color color,

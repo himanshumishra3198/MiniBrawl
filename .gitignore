@@ -55,8 +55,10 @@ crashlytics-build.properties
 *.jks
 keystore.properties
 
-# Unity Performance Testing package writes these during a test run
-/[Aa]ssets/[Rr]esources/PerformanceTestRun*
+# Unity Performance Testing package writes these during a test run. The whole folder is
+# its doing - delete these two lines if the project ever needs a real Resources folder.
+/[Aa]ssets/[Rr]esources/
+/[Aa]ssets/[Rr]esources.meta
 
 # Unity Android build scratch dir (IL2CPP/Gradle intermediates)
 /.utmp/
