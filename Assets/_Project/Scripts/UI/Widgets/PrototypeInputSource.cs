@@ -16,6 +16,10 @@ namespace MiniBrawl.UI.Widgets
     {
         const float k_AimDeadzone = 0.2f;
 
+        // Pushing the move stick up is the jetpack, as in Mini Militia. High enough that walking
+        // left or right with a slightly off-centre thumb doesn't lift you off the ground.
+        const float k_JetpackThreshold = 0.4f;
+
         Vector2 m_Aim = Vector2.right;   // aim persists when the stick is released
 
         public PlayerInput Read(uint tick)
@@ -27,7 +31,11 @@ namespace MiniBrawl.UI.Widgets
             var pad = Gamepad.current;
             if (pad != null)
             {
-                moveX += pad.leftStick.x.ReadValue();
+                Vector2 moveStick = pad.leftStick.ReadValue();
+                moveX += moveStick.x;
+                jetpack |= moveStick.y > k_JetpackThreshold;
+
+                // Face button / trigger stay wired up for a real controller.
                 jetpack |= pad.buttonSouth.isPressed || pad.rightTrigger.isPressed;
 
                 // §14 item 3: the aim stick also pulls the trigger.

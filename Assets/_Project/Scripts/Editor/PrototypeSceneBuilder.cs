@@ -178,16 +178,10 @@ public static class PrototypeSceneBuilder
         scaler.matchWidthOrHeight = 0.5f;
         var canvas = canvasGo.transform;
 
-        // Left thumb drives movement and the jetpack; right thumb aims, which also fires.
+        // Mini Militia's scheme: left stick walks and, pushed up, flies. Right stick aims and fires.
+        // No separate buttons, so each thumb owns one control.
         Stick("LeftStick", "<Gamepad>/leftStick", canvas, square, new Vector2(0f, 0f), new Vector2(300f, 300f));
         Stick("RightStick", "<Gamepad>/rightStick", canvas, square, new Vector2(1f, 0f), new Vector2(-300f, 300f));
-
-        var jet = MakeImage("JetpackButton", canvas, square, new Color(0.35f, 0.85f, 1f, 0.25f),
-            new Vector2(0f, 0f), new Vector2(690f, 250f), new Vector2(240f, 240f));
-        jet.gameObject.AddComponent<OnScreenButton>().controlPath = "<Gamepad>/buttonSouth";
-        var jetLabel = Label("Label", jet.transform, 40, TextAnchor.MiddleCenter);
-        Stretch(jetLabel.rectTransform);
-        jetLabel.text = "JET";
 
         var fuelBack = MakeImage("FuelBar", canvas, square, new Color(1f, 1f, 1f, 0.12f),
             new Vector2(0f, 1f), new Vector2(300f, -70f), new Vector2(520f, 46f));
