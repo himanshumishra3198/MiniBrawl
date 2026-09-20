@@ -16,7 +16,7 @@ namespace MiniBrawl.Networking.Session
         public uint Interval = 30;
 
         NetworkManager m_Manager;
-        uint m_NextTick;
+        uint m_LastLogged;
 
         void Start()
         {
@@ -31,9 +31,15 @@ namespace MiniBrawl.Networking.Session
 
         void OnPostTick()
         {
-            uint tick = m_Manager.TimeManager.LocalTick;
-            if (tick < m_NextTick) return;
-            m_NextTick = tick + Interval;
+            // Tick is synchronised to the server, unlike LocalTick, so two processes logging the
+            // same tick number are describing the same moment. That is what makes these lines
+            // comparable across machines.
+            uint tick = m_Manager.TimeManager.Tick;
+
+            // Sample on exact multiples rather than "every N since I started", so every process
+            // logs the same tick numbers and the lines can be diffed against each other.
+            if (Interval == 0 || tick % Interval != 0 || tick == m_LastLogged) return;
+            m_LastLogged = tick;
 
             var motors = FindObjectsByType<NetworkPlayerMotor>(FindObjectsSortMode.None);
             bool server = m_Manager.IsServerStarted;
@@ -47,7 +53,8 @@ namespace MiniBrawl.Networking.Session
             {
                 var p = motor.State.Position;
                 line.Append($" | owner={motor.OwnerId} pos={p.x:0.00},{p.y:0.00} " +
-                            $"fuel={motor.State.Fuel:0.00} reconciles={motor.Reconciles}");
+                            $"fuel={motor.State.Fuel:0.00} corrections={motor.Corrections}/{motor.Reconciles} " +
+                            $"err={motor.LastError:0.0000} maxErr={motor.MaxError:0.0000}");
             }
 
             Debug.Log(line.ToString());

@@ -51,7 +51,8 @@ namespace MiniBrawl.Networking.Session
             string local = m_Local == null
                 ? "no local player"
                 : $"pos {m_Local.State.Position.x:0.0}, {m_Local.State.Position.y:0.0}  " +
-                  $"fuel {m_Local.State.Fuel * 100f:0}%  reconciles {m_Local.Reconciles}";
+                  $"fuel {m_Local.State.Fuel * 100f:0}%  " +
+                  $"corrections {m_Local.Corrections}  err {m_Local.LastError:0.000}";
 
             Readout.text =
                 $"{role}  |  fps {m_SmoothedFps:0}  |  rtt {m_Manager.TimeManager.RoundTripTime} ms\n" +

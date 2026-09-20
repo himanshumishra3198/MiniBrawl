@@ -85,18 +85,38 @@ namespace MiniBrawl.Networking.Replication
 
         [SerializeField] MotorConfig m_Config = MotorConfig.Default;
 
+        /// <summary>Below this, a correction is float noise rather than a real misprediction.</summary>
+        const float k_CorrectionThreshold = 0.01f;
+
+        /// <summary>Two seconds of predicted positions, enough to cover any reconcile that arrives.</summary>
+        const int k_HistorySize = 64;
+
+        readonly Vector2[] m_PredictedPositions = new Vector2[k_HistorySize];
+        readonly uint[] m_PredictedTicks = new uint[k_HistorySize];
+
         IPlayerInputSource m_Input;
         IMotorCollision m_World;
         PlayerState m_State;
         PlayerInput m_LastInput;
         uint m_Reconciles;
+        uint m_Corrections;
+        float m_LastError;
+        float m_MaxError;
 
         public PlayerState State => m_State;
         public PlayerInput LastInput => m_LastInput;
         public MotorConfig Config => m_Config;
 
-        /// <summary>How many corrections the server has forced on us — the number to watch.</summary>
+        /// <summary>Reconcile packets applied. Near one per tick is normal, and means nothing on its own.</summary>
         public uint Reconciles => m_Reconciles;
+
+        /// <summary>Reconciles where the prediction was actually wrong. This is the number to watch.</summary>
+        public uint Corrections => m_Corrections;
+
+        /// <summary>How far the last reconcile moved us, in world units.</summary>
+        public float LastError => m_LastError;
+
+        public float MaxError => m_MaxError;
 
         void Reset() => m_Config = MotorConfig.Default;
 
@@ -136,12 +156,35 @@ namespace MiniBrawl.Networking.Replication
             m_LastInput = md.ToInput();
             m_State = PlayerMotor.Simulate(m_State, m_LastInput, m_Config, m_World, delta);
             transform.position = m_State.Position;
+
+            // Record what we predicted for this tick, but only on the live tick — during a replay
+            // this same method re-runs past ticks, and those are corrections, not predictions.
+            if (state.ContainsTicked())
+            {
+                uint tick = md.GetTick();
+                int slot = (int)(tick % k_HistorySize);
+                m_PredictedTicks[slot] = tick;
+                m_PredictedPositions[slot] = m_State.Position;
+            }
         }
 
         [Reconcile]
         void PerformReconcile(StateData rd, Channel channel = Channel.Unreliable)
         {
             m_Reconciles++;
+
+            /* Compare against what we predicted for THIS tick, not our current position. The client
+             * simulates ahead of the server, so current position describes a later moment and would
+             * report a large error even when prediction is perfect. */
+            uint tick = rd.GetTick();
+            int slot = (int)(tick % k_HistorySize);
+            if (m_PredictedTicks[slot] == tick)
+            {
+                m_LastError = Vector2.Distance(m_PredictedPositions[slot], rd.Position);
+                if (m_LastError > m_MaxError) m_MaxError = m_LastError;
+                if (m_LastError > k_CorrectionThreshold) m_Corrections++;
+            }
+
             m_State = rd.ToState();
             transform.position = m_State.Position;
         }
