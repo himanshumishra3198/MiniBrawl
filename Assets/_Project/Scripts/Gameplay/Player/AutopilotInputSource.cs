@@ -17,12 +17,16 @@ namespace MiniBrawl.Gameplay.Player
             sbyte moveX = phase < 60 ? (sbyte)100 : (sbyte)-100;
             bool jetpack = phase % 40 < 16;
 
+            // Always firing, aimed the way we walk: the point is to exercise the weapon path.
+            byte buttons = PlayerInput.BtnFire;
+            if (jetpack) buttons |= PlayerInput.BtnJetpack;
+
             return new PlayerInput
             {
                 Tick = tick,
                 MoveX = moveX,
                 AimAngle = PlayerInput.EncodeAim(moveX > 0 ? Vector2.right : Vector2.left),
-                Buttons = jetpack ? PlayerInput.BtnJetpack : (byte)0,
+                Buttons = buttons,
             };
         }
     }

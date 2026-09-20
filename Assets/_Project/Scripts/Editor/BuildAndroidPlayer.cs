@@ -10,6 +10,9 @@ public static class BuildAndroidPlayer
 {
     const string k_OutputDir = "Builds/Android";
 
+    /// <summary>The phone boots into the networked scene; its host/join menu covers solo play too.</summary>
+    const string k_BootScene = "Assets/_Project/Scenes/20_Network.unity";
+
     [MenuItem("MiniBrawl/Build Development APK")]
     public static void BuildDevelopment() => Build(true);
 
@@ -32,13 +35,16 @@ public static class BuildAndroidPlayer
         // file just restores it from the build cache. Only CleanBuildCache actually repacks.
         if (File.Exists(apk)) File.Delete(apk);
 
-        string[] scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
-        if (scenes.Length == 0)
+        var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToList();
+        if (scenes.Count == 0)
             throw new InvalidOperationException("No enabled scenes — run MiniBrawl > Build Prototype Scene first.");
+
+        // Scene 0 is what launches, so the networked scene has to lead.
+        if (scenes.Remove(k_BootScene)) scenes.Insert(0, k_BootScene);
 
         var options = new BuildPlayerOptions
         {
-            scenes = scenes,
+            scenes = scenes.ToArray(),
             locationPathName = apk,
             target = BuildTarget.Android,
             targetGroup = BuildTargetGroup.Android,

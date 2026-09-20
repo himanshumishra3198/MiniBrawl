@@ -16,8 +16,8 @@ namespace MiniBrawl.Networking.Session
     {
         public enum StartMode { None, Host, Server, Client }
 
-        [Tooltip("Used when no -server/-client/-host argument is present.")]
-        public StartMode DefaultMode = StartMode.Host;
+        [Tooltip("Used when no -server/-client/-host argument is present. None waits for the menu.")]
+        public StartMode DefaultMode = StartMode.None;
 
         public string DefaultAddress = "127.0.0.1";
 
@@ -56,7 +56,40 @@ namespace MiniBrawl.Networking.Session
 
             m_Manager.TimeManager.SetTickRate(NetworkConstants.SimulationTickRate);
 
-            switch (m_Mode)
+            Debug.Log($"[NetworkBootstrap] mode={m_Mode} address={m_Address} port={m_Port} " +
+                      $"tick={NetworkConstants.SimulationTickRate}Hz autopilot={Autopilot}");
+
+            // With no mode given, wait: the menu decides whether this device hosts or joins.
+            if (m_Mode != StartMode.None) Connect(m_Mode, m_Address);
+        }
+
+        /// <summary>This device hosts: it runs the server and plays on it (§2.1 listen-server).</summary>
+        public void StartHost() => Connect(StartMode.Host, m_Address);
+
+        public void StartClient(string address) => Connect(StartMode.Client, address);
+
+        public void Stop()
+        {
+            if (m_Manager == null) return;
+            m_Manager.ClientManager.StopConnection();
+            m_Manager.ServerManager.StopConnection(sendDisconnectMessage: true);
+            m_Mode = StartMode.None;
+        }
+
+        void Connect(StartMode mode, string address)
+        {
+            if (m_Manager == null) return;
+
+            m_Mode = mode;
+            m_Address = address;
+
+            if (m_Manager.TransportManager.Transport is Tugboat tugboat)
+            {
+                tugboat.SetPort(m_Port);
+                tugboat.SetClientAddress(address);
+            }
+
+            switch (mode)
             {
                 case StartMode.Host:
                     m_Manager.ServerManager.StartConnection();
@@ -70,8 +103,7 @@ namespace MiniBrawl.Networking.Session
                     break;
             }
 
-            Debug.Log($"[NetworkBootstrap] mode={m_Mode} address={m_Address} port={m_Port} " +
-                      $"tick={NetworkConstants.SimulationTickRate}Hz autopilot={Autopilot}");
+            Debug.Log($"[NetworkBootstrap] starting {mode} -> {address}:{m_Port}");
         }
 
         void ParseCommandLine(out StartMode mode, out string address, out ushort port)

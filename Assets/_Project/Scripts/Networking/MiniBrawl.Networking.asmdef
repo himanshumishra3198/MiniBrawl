@@ -6,7 +6,8 @@
         "MiniBrawl.Config",
         "MiniBrawl.Gameplay",
         "FishNet.Runtime",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "MiniBrawl.Platform"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

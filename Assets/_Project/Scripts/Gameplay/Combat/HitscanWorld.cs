@@ -17,7 +17,9 @@ namespace MiniBrawl.Gameplay.Combat
     /// </summary>
     public interface IHitscanWorld
     {
-        HitscanHit Raycast(Vector2 origin, Vector2 direction, float distance);
+        /// <param name="ignore">The shooter's own collider: a ray starting inside it would otherwise
+        /// hit the shooter and stop dead.</param>
+        HitscanHit Raycast(Vector2 origin, Vector2 direction, float distance, Collider2D ignore = null);
     }
 
     /// <summary>Physics2D-backed implementation used by the offline prototype and the host.</summary>
@@ -31,13 +33,14 @@ namespace MiniBrawl.Gameplay.Combat
             m_Filter = new ContactFilter2D { useLayerMask = true, layerMask = mask, useTriggers = false };
         }
 
-        public HitscanHit Raycast(Vector2 origin, Vector2 direction, float distance)
+        public HitscanHit Raycast(Vector2 origin, Vector2 direction, float distance, Collider2D ignore = null)
         {
             int count = Physics2D.Raycast(origin, direction, m_Filter, m_Hits, distance);
 
             var best = new HitscanHit { Distance = distance };
             for (int i = 0; i < count; i++)
             {
+                if (ignore != null && m_Hits[i].collider == ignore) continue;
                 if (best.Hit && m_Hits[i].distance >= best.Distance) continue;
                 best = new HitscanHit
                 {

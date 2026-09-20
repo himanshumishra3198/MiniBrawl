@@ -31,9 +31,10 @@ public static class NetworkSceneBuilder
     public static void Build()
     {
         int levelLayer = PrototypeSceneBuilder.EnsureLayer(PrototypeSceneBuilder.k_LevelLayer);
+        int hittableLayer = PrototypeSceneBuilder.EnsureLayer(PrototypeSceneBuilder.k_HittableLayer);
         Sprite square = PrototypeSceneBuilder.EnsureSquareSprite();
 
-        NetworkObject prefab = BuildPlayerPrefab(square, levelLayer);
+        NetworkObject prefab = BuildPlayerPrefab(square, levelLayer, hittableLayer);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -52,11 +53,13 @@ public static class NetworkSceneBuilder
         Debug.Log($"[NetworkSceneBuilder] Wrote {k_ScenePath} and {k_PrefabPath}.");
     }
 
-    static NetworkObject BuildPlayerPrefab(Sprite square, int levelLayer)
+    static NetworkObject BuildPlayerPrefab(Sprite square, int levelLayer, int hittableLayer)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(k_PrefabPath));
 
-        var go = new GameObject("NetworkPlayer");
+        // On the Hittable layer so shots can find players, and off the Level layer so the motor's
+        // own sweep never collides with the player it is moving.
+        var go = new GameObject("NetworkPlayer") { layer = hittableLayer };
         go.transform.localScale = new Vector3(PlayerMotor.Size.x, PlayerMotor.Size.y, 1f);
 
         var sr = go.AddComponent<SpriteRenderer>();
@@ -64,9 +67,12 @@ public static class NetworkSceneBuilder
         sr.color = PrototypeSceneBuilder.k_PlayerColor;
         sr.sortingOrder = 10;
 
+        go.AddComponent<BoxCollider2D>().size = Vector2.one;
+
         var nob = go.AddComponent<NetworkObject>();
         var motor = go.AddComponent<NetworkPlayerMotor>();
         motor.LevelMask = 1 << levelLayer;
+        motor.HitMask = (1 << levelLayer) | (1 << hittableLayer);
         go.AddComponent<PrototypeInputSource>();
 
         // Prediction is off by default on NetworkObject, and without it [Replicate]/[Reconcile]
@@ -110,7 +116,7 @@ public static class NetworkSceneBuilder
         tugboat.SetClientAddress("127.0.0.1");
 
         go.AddComponent<NetworkBootstrap>();
-
+        go.AddComponent<SessionMenu>();
         go.AddComponent<NetworkTelemetry>();
 
         var spawner = go.AddComponent<PlayerSpawner>();
