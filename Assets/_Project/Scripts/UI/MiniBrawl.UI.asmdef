@@ -1,7 +1,13 @@
 {
     "name": "MiniBrawl.UI",
     "rootNamespace": "MiniBrawl.UI",
-    "references": ["MiniBrawl.Core", "MiniBrawl.Config", "Unity.InputSystem", "UnityEngine.UI"],
+    "references": [
+        "MiniBrawl.Core",
+        "MiniBrawl.Config",
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "MiniBrawl.Gameplay"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

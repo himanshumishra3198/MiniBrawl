@@ -1,6 +1,9 @@
+using System;
+
 namespace MiniBrawl.Gameplay.Player
 {
     /// <summary>Tuning values for movement. Placeholder numbers — Phase 1 tunes these by feel.</summary>
+    [Serializable]
     public struct MotorConfig
     {
         public float Gravity, MoveSpeed, JetpackThrust, MaxFallSpeed, MaxRiseSpeed;
