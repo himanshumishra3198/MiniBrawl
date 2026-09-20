@@ -57,3 +57,6 @@ keystore.properties
 
 # Unity Performance Testing package writes these during a test run
 /[Aa]ssets/[Rr]esources/PerformanceTestRun*
+
+# Unity Android build scratch dir (IL2CPP/Gradle intermediates)
+/.utmp/
