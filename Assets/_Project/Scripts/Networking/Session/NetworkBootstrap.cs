@@ -68,6 +68,13 @@ namespace MiniBrawl.Networking.Session
 
         public void StartClient(string address) => Connect(StartMode.Client, address);
 
+        /// <summary>Joins a discovered host on the port its beacon advertised.</summary>
+        public void StartClient(string address, ushort port)
+        {
+            m_Port = port;
+            Connect(StartMode.Client, address);
+        }
+
         public void Stop()
         {
             if (m_Manager == null) return;

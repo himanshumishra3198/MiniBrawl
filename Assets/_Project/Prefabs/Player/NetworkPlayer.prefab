@@ -220,6 +220,7 @@ MonoBehaviour:
   HitMask:
     serializedVersion: 2
     m_Bits: 768
+  RespawnDelay: 3
   m_Config:
     Gravity: 18
     MoveSpeed: 4.5

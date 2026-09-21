@@ -6,6 +6,7 @@ using FishNet.Object;
 using FishNet.Transporting.Tugboat;
 using MiniBrawl.Config;
 using MiniBrawl.Gameplay.Player;
+using MiniBrawl.Networking.Discovery;
 using MiniBrawl.Networking.Match;
 using MiniBrawl.Networking.Replication;
 using MiniBrawl.Networking.Session;
@@ -116,6 +117,12 @@ public static class NetworkSceneBuilder
         tugboat.SetClientAddress("127.0.0.1");
 
         go.AddComponent<NetworkBootstrap>();
+
+        // Discovery: the host advertises itself, every device listens while its menu is open.
+        go.AddComponent<LanBeaconBroadcaster>();
+        go.AddComponent<HostAdvertiser>();
+        go.AddComponent<LanBeaconListener>();
+
         go.AddComponent<SessionMenu>();
         go.AddComponent<NetworkTelemetry>();
 

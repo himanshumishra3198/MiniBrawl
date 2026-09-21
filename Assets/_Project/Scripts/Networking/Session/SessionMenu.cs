@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using FishNet;
 using FishNet.Managing;
 using MiniBrawl.Config;
+using MiniBrawl.Networking.Discovery;
 using MiniBrawl.Platform;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,30 +10,41 @@ using UnityEngine.UI;
 namespace MiniBrawl.Networking.Session
 {
     /// <summary>
-    /// Minimal host/join screen so two phones can play over a hotspot. The host shows its address
-    /// and the joiner types it in — LAN discovery replaces this typing in Phase 3 (§4.1), which is
-    /// why this deliberately stays a stopgap rather than growing into a lobby.
+    /// Host/join screen. Games on the network list themselves through the LAN beacon (§4.1); the
+    /// typed address stays as the fallback §4.2 asks for, because discovery is the part most likely
+    /// to be blocked by a router or an Android power setting.
     ///
     /// Built in code rather than in the scene so the whole flow reads in one file.
     /// </summary>
     public sealed class SessionMenu : MonoBehaviour
     {
         const string k_AddressKey = "minibrawl.lastAddress";
+        const int k_MaxRows = 4;
 
         NetworkBootstrap m_Bootstrap;
         NetworkManager m_Manager;
+        LanBeaconListener m_Listener;
+
         GameObject m_Panel;
         Text m_Status;
         Text m_DeviceLabel;
+        Text m_RoomsHeader;
         InputField m_AddressField;
+        readonly List<(Button button, Text label)> m_Rows = new();
+
         bool m_WasConnected;
         float m_IpAge;
 
         void Start()
         {
             m_Bootstrap = FindFirstObjectByType<NetworkBootstrap>();
+            m_Listener = FindFirstObjectByType<LanBeaconListener>();
             m_Manager = InstanceFinder.NetworkManager;
+
             BuildUi();
+
+            // Only listen while the menu is up: the multicast lock costs battery.
+            m_Listener?.StartListening();
         }
 
         void Update()
@@ -43,16 +56,43 @@ namespace MiniBrawl.Networking.Session
             {
                 m_WasConnected = connected;
                 m_Panel.SetActive(!connected);
+
+                if (connected) m_Listener?.StopListening();
+                else m_Listener?.StartListening();
             }
+
+            if (connected) return;
+
+            RefreshRooms();
 
             // Turning on a hotspot changes this device's address while the menu is open, so keep
             // it live rather than resolving once at startup.
-            if (connected) return;
             m_IpAge -= Time.unscaledDeltaTime;
             if (m_IpAge > 0f) return;
 
             m_IpAge = 2f;
             m_DeviceLabel.text = $"this device: {LocalIpResolver.Resolve()}";
+        }
+
+        void RefreshRooms()
+        {
+            IReadOnlyList<RoomInfo> rooms = m_Listener != null ? m_Listener.Rooms : null;
+            int count = rooms?.Count ?? 0;
+
+            m_RoomsHeader.text = count == 0
+                ? (m_Listener != null && m_Listener.IsListening ? "searching for games…" : "discovery unavailable")
+                : "games found — tap to join";
+
+            for (int i = 0; i < m_Rows.Count; i++)
+            {
+                bool used = i < count;
+                m_Rows[i].button.gameObject.SetActive(used);
+                if (!used) continue;
+
+                RoomInfo room = rooms[i];
+                m_Rows[i].label.text = room.Describe();
+                m_Rows[i].button.interactable = room.Compatible && !room.IsFull;
+            }
         }
 
         void OnHost()
@@ -62,15 +102,30 @@ namespace MiniBrawl.Networking.Session
             m_Bootstrap.StartHost();
         }
 
-        void OnJoin()
+        void OnJoinTyped()
         {
             string address = string.IsNullOrWhiteSpace(m_AddressField.text)
                 ? "127.0.0.1"
                 : m_AddressField.text.Trim();
 
+            // Typed addresses carry no port, so fall back to the well-known one.
+            Join(address, NetworkConstants.GamePort);
+        }
+
+        void OnJoinRoom(int index)
+        {
+            IReadOnlyList<RoomInfo> rooms = m_Listener?.Rooms;
+            if (rooms == null || index >= rooms.Count) return;
+
+            RoomInfo room = rooms[index];
+            Join(room.Address, room.Port);   // the beacon says which port to dial
+        }
+
+        void Join(string address, ushort port)
+        {
             PlayerPrefs.SetString(k_AddressKey, address);
-            m_Status.text = $"connecting to {address}:{NetworkConstants.GamePort}...";
-            m_Bootstrap.StartClient(address);
+            m_Status.text = $"connecting to {address}:{port}…";
+            m_Bootstrap.StartClient(address, port);
         }
 
         void BuildUi()
@@ -87,19 +142,28 @@ namespace MiniBrawl.Networking.Session
             scaler.matchWidthOrHeight = 0.5f;
 
             m_Panel = Panel(canvasGo.transform);
+            Transform panel = m_Panel.transform;
 
-            Label(m_Panel.transform, "MINIBRAWL", 64, new Vector2(0f, 300f), new Vector2(900f, 90f));
+            Label(panel, "MINIBRAWL", 60, new Vector2(0f, 420f), new Vector2(900f, 80f));
 
-            Button(m_Panel.transform, "HOST", new Vector2(-260f, 120f), new Vector2(420f, 130f), OnHost);
-            Button(m_Panel.transform, "JOIN", new Vector2(260f, 120f), new Vector2(420f, 130f), OnJoin);
+            Button(panel, "HOST A GAME", new Vector2(-560f, 300f), new Vector2(560f, 110f), OnHost);
 
-            m_AddressField = AddressField(m_Panel.transform, new Vector2(0f, -40f), new Vector2(700f, 100f));
-            Label(m_Panel.transform, "host's address", 28, new Vector2(0f, 30f), new Vector2(700f, 40f));
+            m_RoomsHeader = Label(panel, "searching for games…", 30, new Vector2(0f, 190f), new Vector2(1200f, 40f));
+            for (int i = 0; i < k_MaxRows; i++)
+            {
+                int index = i;   // captured per row
+                Button row = Button(panel, "", new Vector2(0f, 110f - i * 95f), new Vector2(1100f, 85f),
+                    () => OnJoinRoom(index));
+                row.gameObject.SetActive(false);
+                m_Rows.Add((row, row.GetComponentInChildren<Text>()));
+            }
 
-            m_DeviceLabel = Label(m_Panel.transform, "this device: …", 36,
-                new Vector2(0f, -170f), new Vector2(1200f, 60f));
-            m_Status = Label(m_Panel.transform, "", 28,
-                new Vector2(0f, -240f), new Vector2(1200f, 80f));
+            Label(panel, "or type the host's address", 26, new Vector2(0f, -290f), new Vector2(900f, 36f));
+            m_AddressField = AddressField(panel, new Vector2(-180f, -360f), new Vector2(620f, 90f));
+            Button(panel, "JOIN", new Vector2(350f, -360f), new Vector2(380f, 90f), OnJoinTyped);
+
+            m_DeviceLabel = Label(panel, "this device: …", 30, new Vector2(0f, -440f), new Vector2(1200f, 50f));
+            m_Status = Label(panel, "", 26, new Vector2(0f, -490f), new Vector2(1400f, 50f));
         }
 
         static GameObject Panel(Transform parent)
@@ -130,21 +194,23 @@ namespace MiniBrawl.Networking.Session
             return label;
         }
 
-        static void Button(Transform parent, string text, Vector2 position, Vector2 dimensions,
-                           UnityEngine.Events.UnityAction onClick)
+        static Button Button(Transform parent, string text, Vector2 position, Vector2 dimensions,
+                             UnityEngine.Events.UnityAction onClick)
         {
             var go = new GameObject($"Button_{text}", typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             Place((RectTransform)go.transform, position, dimensions);
 
             go.GetComponent<Image>().color = new Color(0.35f, 0.85f, 1f, 0.3f);
-            go.GetComponent<Button>().onClick.AddListener(onClick);
+            var button = go.GetComponent<Button>();
+            button.onClick.AddListener(onClick);
 
-            Text label = Label(go.transform, text, 44, Vector2.zero, dimensions);
+            Text label = Label(go.transform, text, 38, Vector2.zero, dimensions);
             var rt = label.rectTransform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
+            return button;
         }
 
         static InputField AddressField(Transform parent, Vector2 position, Vector2 dimensions)
@@ -154,8 +220,7 @@ namespace MiniBrawl.Networking.Session
             Place((RectTransform)go.transform, position, dimensions);
             go.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
 
-            Text text = Label(go.transform, "", 40, Vector2.zero, dimensions);
-            text.alignment = TextAnchor.MiddleCenter;
+            Text text = Label(go.transform, "", 36, Vector2.zero, dimensions);
             text.supportRichText = false;
             var textRect = text.rectTransform;
             textRect.anchorMin = Vector2.zero;

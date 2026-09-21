@@ -6,7 +6,9 @@
         "MiniBrawl.Core",
         "MiniBrawl.Config",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "MiniBrawl.Networking",
+        "FishNet.Runtime"
     ],
     "includePlatforms": [
         "Editor"
