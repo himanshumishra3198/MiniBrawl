@@ -49,6 +49,16 @@ namespace MiniBrawl.Networking.Session
             var line = new StringBuilder();
             line.Append($"[telemetry] role={role} tick={tick} rtt={m_Manager.TimeManager.RoundTripTime} players={motors.Length}");
 
+            // Roster scores, which are the match's truth — the per-player "hits" below only counts
+            // shots landed and says nothing about who is winning.
+            Match.MatchDirector director = Match.MatchDirector.Instance;
+            if (director != null)
+            {
+                line.Append($" | phase={director.Phase} left={director.TimeRemaining:0}s");
+                foreach (Match.PlayerSlot slot in director.Standings())
+                    line.Append($" [{slot.Name} {slot.Kills}k/{slot.Deaths}d{(slot.Connected ? "" : " away")}]");
+            }
+
             foreach (var motor in motors)
             {
                 var p = motor.State.Position;

@@ -26,6 +26,7 @@ public static class NetworkSceneBuilder
 {
     const string k_ScenePath  = "Assets/_Project/Scenes/20_Network.unity";
     const string k_PrefabPath = "Assets/_Project/Prefabs/Player/NetworkPlayer.prefab";
+    const string k_DirectorPrefabPath = "Assets/_Project/Prefabs/Network/MatchDirector.prefab";
     const string k_PrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
 
     [MenuItem("MiniBrawl/Build Network Scene")]
@@ -36,12 +37,13 @@ public static class NetworkSceneBuilder
         Sprite square = PrototypeSceneBuilder.EnsureSquareSprite();
 
         NetworkObject prefab = BuildPlayerPrefab(square, levelLayer, hittableLayer);
+        NetworkObject director = BuildMatchDirectorPrefab();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         PrototypeSceneBuilder.BuildCamera();
         PrototypeSceneBuilder.BuildLevel(square, levelLayer);
-        BuildNetworkManager(prefab);
+        BuildNetworkManager(prefab, director);
         BuildHud(square);
 
         Directory.CreateDirectory(Path.GetDirectoryName(k_ScenePath));
@@ -105,7 +107,7 @@ public static class NetworkSceneBuilder
         EditorUtility.SetDirty(collection);
     }
 
-    static void BuildNetworkManager(NetworkObject playerPrefab)
+    static void BuildNetworkManager(NetworkObject playerPrefab, NetworkObject directorPrefab)
     {
         var go = new GameObject("NetworkManager", typeof(NetworkManager), typeof(Tugboat));
 
@@ -128,12 +130,31 @@ public static class NetworkSceneBuilder
 
         var spawner = go.AddComponent<PlayerSpawner>();
         spawner.PlayerPrefab = playerPrefab;
+        spawner.MatchDirectorPrefab = directorPrefab;
         spawner.SpawnPoints = new[]
         {
             new Vector2(-4f, -4f), new Vector2(4f, -4f),
             new Vector2(-8f, -4f), new Vector2(8f, -4f),
             new Vector2(-2f, 0f),  new Vector2(2f, 0f),
         };
+    }
+
+    /// <summary>
+    /// A prefab the server spawns, not a scene object. FishNet assigns scene ids from editor
+    /// callbacks that never fire for objects created by script, so a generated scene's
+    /// NetworkObjects end up with SceneId 0 and are silently never spawned.
+    /// </summary>
+    static NetworkObject BuildMatchDirectorPrefab()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(k_DirectorPrefabPath));
+
+        var go = new GameObject("MatchDirector", typeof(NetworkObject), typeof(MatchDirector));
+        GameObject saved = PrefabUtility.SaveAsPrefabAsset(go, k_DirectorPrefabPath);
+        Object.DestroyImmediate(go);
+
+        var prefab = saved.GetComponent<NetworkObject>();
+        RegisterPrefab(prefab);
+        return prefab;
     }
 
     static void BuildHud(Sprite square)
@@ -161,6 +182,29 @@ public static class NetworkSceneBuilder
         rt.sizeDelta = new Vector2(1100f, 160f);
 
         canvasGo.AddComponent<NetworkDebugOverlay>().Readout = readout;
+
+        // Match banner across the top, scoreboard right, kill feed under it.
+        Text banner = PrototypeSceneBuilder.Label("Banner", canvas, 54, TextAnchor.UpperCenter);
+        Anchor(banner.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(1200f, 80f));
+
+        Text scoreboard = PrototypeSceneBuilder.Label("Scoreboard", canvas, 30, TextAnchor.UpperRight);
+        Anchor(scoreboard.rectTransform, new Vector2(1f, 1f), new Vector2(-44f, -140f), new Vector2(760f, 260f));
+
+        Text killFeed = PrototypeSceneBuilder.Label("KillFeed", canvas, 28, TextAnchor.UpperRight);
+        Anchor(killFeed.rectTransform, new Vector2(1f, 1f), new Vector2(-44f, -420f), new Vector2(760f, 200f));
+
+        var matchHud = canvasGo.AddComponent<MatchHud>();
+        matchHud.Banner = banner;
+        matchHud.Scoreboard = scoreboard;
+        matchHud.KillFeed = killFeed;
+    }
+
+    static void Anchor(RectTransform rt, Vector2 anchor, Vector2 position, Vector2 dimensions)
+    {
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.pivot = anchor;
+        rt.anchoredPosition = position;
+        rt.sizeDelta = dimensions;
     }
 
     /// <summary>Keeps the phone scene at index 0 and adds the network scene after it.</summary>

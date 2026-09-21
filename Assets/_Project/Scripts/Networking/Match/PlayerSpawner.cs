@@ -2,6 +2,7 @@ using FishNet;
 using FishNet.Connection;
 using FishNet.Managing;
 using FishNet.Object;
+using FishNet.Transporting;
 using UnityEngine;
 
 namespace MiniBrawl.Networking.Match
@@ -13,6 +14,9 @@ namespace MiniBrawl.Networking.Match
     public sealed class PlayerSpawner : MonoBehaviour
     {
         public NetworkObject PlayerPrefab;
+
+        [Tooltip("Spawned once when the server starts, before anyone joins.")]
+        public NetworkObject MatchDirectorPrefab;
         public Vector2[] SpawnPoints = { new Vector2(-4f, -4f), new Vector2(4f, -4f) };
 
         NetworkManager m_Manager;
@@ -27,12 +31,35 @@ namespace MiniBrawl.Networking.Match
                 return;
             }
             m_Manager.SceneManager.OnClientLoadedStartScenes += OnClientLoadedStartScenes;
+            m_Manager.ServerManager.OnRemoteConnectionState += OnRemoteConnectionState;
+            m_Manager.ServerManager.OnServerConnectionState += OnServerConnectionState;
         }
 
         void OnDestroy()
         {
-            if (m_Manager != null)
-                m_Manager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedStartScenes;
+            if (m_Manager == null) return;
+            m_Manager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedStartScenes;
+            m_Manager.ServerManager.OnRemoteConnectionState -= OnRemoteConnectionState;
+            m_Manager.ServerManager.OnServerConnectionState -= OnServerConnectionState;
+        }
+
+        /// <summary>The match has to exist before the first player claims a slot in it.</summary>
+        void OnServerConnectionState(ServerConnectionStateArgs args)
+        {
+            if (args.ConnectionState != LocalConnectionState.Started) return;
+            if (MatchDirectorPrefab == null || MatchDirector.Instance != null) return;
+
+            NetworkObject director = Instantiate(MatchDirectorPrefab);
+            m_Manager.ServerManager.Spawn(director);
+            Debug.Log("[PlayerSpawner] spawned the match director");
+        }
+
+        void OnRemoteConnectionState(NetworkConnection connection, RemoteConnectionStateArgs args)
+        {
+            if (args.ConnectionState != RemoteConnectionState.Stopped) return;
+
+            // The seat is held rather than removed: the same player id reclaims it on return.
+            MatchDirector.Instance?.ReleaseSlot(connection.ClientId);
         }
 
         void OnClientLoadedStartScenes(NetworkConnection connection, bool asServer)

@@ -5,6 +5,7 @@ using FishNet.Utility.Template;
 using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Player;
 using MiniBrawl.Gameplay.Weapons;
+using MiniBrawl.Networking.Identity;
 using UnityEngine;
 
 namespace MiniBrawl.Networking.Replication
@@ -129,6 +130,7 @@ namespace MiniBrawl.Networking.Replication
         Vector2 m_SpawnPoint;
         float m_TracerRemaining;
 
+        bool m_SlotClaimed;
         uint m_Reconciles;
         uint m_Corrections;
         float m_LastError;
@@ -183,6 +185,22 @@ namespace MiniBrawl.Networking.Replication
         {
             base.OnStartClient();
             m_AimLine = BuildAimLine();
+            TryClaimSlot();
+        }
+
+        /// <summary>
+        /// Claims our seat by player id, not connection id, so a reconnect finds it again. Retried
+        /// from Update because the director is a spawned object and may arrive after we do.
+        /// </summary>
+        void TryClaimSlot()
+        {
+            if (m_SlotClaimed || !IsOwner) return;
+
+            Match.MatchDirector director = Match.MatchDirector.Instance;
+            if (director == null) return;
+
+            director.ClaimSlot(PlayerIdentity.Id, PlayerIdentity.Name);
+            m_SlotClaimed = true;
         }
 
         void OnDestroy()
@@ -248,7 +266,7 @@ namespace MiniBrawl.Networking.Replication
             if (hit.Collider.TryGetComponent(out NetworkPlayerMotor victim) && victim != this)
             {
                 if (victim.m_State.IsDead) return;   // no shooting corpses
-                victim.ApplyDamage(m_WeaponConfig.Damage);
+                victim.ApplyDamage(m_WeaponConfig.Damage, OwnerId);
                 Hits++;
             }
             else if (hit.Collider.TryGetComponent(out Damageable target))
@@ -259,7 +277,7 @@ namespace MiniBrawl.Networking.Replication
         }
 
         /// <summary>Server-only. Health is part of the reconciled state, so clients learn of it there.</summary>
-        void ApplyDamage(int amount)
+        void ApplyDamage(int amount, int attackerClientId)
         {
             if (!IsServerStarted || amount <= 0) return;
 
@@ -270,6 +288,8 @@ namespace MiniBrawl.Networking.Replication
             Deaths++;
             m_State.RespawnIn = RespawnDelay;
             m_State.Velocity = Vector2.zero;
+
+            Match.MatchDirector.Instance?.ReportKill(attackerClientId, OwnerId);
         }
 
         [Reconcile]
@@ -296,6 +316,8 @@ namespace MiniBrawl.Networking.Replication
 
         void Update()
         {
+            TryClaimSlot();
+
             /* Health and the respawn timer are reconciled to everyone, so hiding a dead player
              * needs no extra synchronisation — every machine reaches the same conclusion. */
             bool dead = m_State.IsDead;
