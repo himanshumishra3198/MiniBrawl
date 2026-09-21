@@ -16,6 +16,15 @@ namespace MiniBrawl.Gameplay.Player
         {
             PlayerState s = prev;
 
+            // Dead players hold still and count down. Running this here rather than in the network
+            // layer means the timer replays identically during reconciliation.
+            if (s.IsDead)
+            {
+                s.Velocity = Vector2.zero;
+                s.RespawnIn = Mathf.Max(0f, s.RespawnIn - dt);
+                return s;
+            }
+
             s.Velocity.x = input.MoveAxis * cfg.MoveSpeed;
 
             if (input.Jetpack)

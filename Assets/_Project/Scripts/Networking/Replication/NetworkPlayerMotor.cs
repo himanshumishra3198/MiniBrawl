@@ -56,6 +56,7 @@ namespace MiniBrawl.Networking.Replication
             public Vector2 Position;
             public Vector2 Velocity;
             public float Fuel;
+            public float RespawnIn;
             public float WeaponCooldown;
             public byte Health;
             public bool Grounded;
@@ -67,6 +68,7 @@ namespace MiniBrawl.Networking.Replication
                 Position = state.Position;
                 Velocity = state.Velocity;
                 Fuel = state.Fuel;
+                RespawnIn = state.RespawnIn;
                 Health = state.Health;
                 Grounded = state.Grounded;
                 WeaponCooldown = weapon.Cooldown;
@@ -78,6 +80,7 @@ namespace MiniBrawl.Networking.Replication
                 Position = Position,
                 Velocity = Velocity,
                 Fuel = Fuel,
+                RespawnIn = RespawnIn,
                 Health = Health,
                 Grounded = Grounded,
             };
@@ -92,6 +95,9 @@ namespace MiniBrawl.Networking.Replication
 
         [Tooltip("Level geometry plus anything shootable.")]
         public LayerMask HitMask = ~0;
+
+        [Tooltip("Seconds a killed player stays down before respawning (§14 item 4).")]
+        public float RespawnDelay = 3f;
 
         [SerializeField] MotorConfig m_Config = MotorConfig.Default;
         [SerializeField] WeaponConfig m_WeaponConfig = WeaponConfig.Default;
@@ -210,7 +216,11 @@ namespace MiniBrawl.Networking.Replication
             m_State = PlayerMotor.Simulate(m_State, m_LastInput, m_Config, m_World, delta);
             transform.position = m_State.Position;
 
-            if (WeaponSim.Step(ref m_Weapon, m_WeaponConfig, m_LastInput.Fire, delta))
+            // The server decides when the body comes back; clients find out by reconciliation.
+            if (IsServerStarted && m_State.IsDead && m_State.RespawnIn <= 0f)
+                m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
+
+            if (!m_State.IsDead && WeaponSim.Step(ref m_Weapon, m_WeaponConfig, m_LastInput.Fire, delta))
                 FireShot(m_LastInput.AimDirection, state);
 
             // Record what we predicted for this tick, but only on the live tick — during a replay
@@ -237,6 +247,7 @@ namespace MiniBrawl.Networking.Replication
 
             if (hit.Collider.TryGetComponent(out NetworkPlayerMotor victim) && victim != this)
             {
+                if (victim.m_State.IsDead) return;   // no shooting corpses
                 victim.ApplyDamage(m_WeaponConfig.Damage);
                 Hits++;
             }
@@ -255,10 +266,10 @@ namespace MiniBrawl.Networking.Replication
             m_State.Health = (byte)Mathf.Max(0, m_State.Health - amount);
             if (m_State.Health > 0) return;
 
-            /* Instant respawn: a delay would need timer state carried through every reconcile, and
-             * the match rules that own respawn timing arrive in Phase 4. */
+            // Start the countdown; PlayerMotor ticks it down and the replicate step respawns us.
             Deaths++;
-            m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
+            m_State.RespawnIn = RespawnDelay;
+            m_State.Velocity = Vector2.zero;
         }
 
         [Reconcile]
@@ -285,11 +296,20 @@ namespace MiniBrawl.Networking.Replication
 
         void Update()
         {
-            // Health is reconciled to everyone, so colouring by it needs no extra synchronisation.
+            /* Health and the respawn timer are reconciled to everyone, so hiding a dead player
+             * needs no extra synchronisation — every machine reaches the same conclusion. */
+            bool dead = m_State.IsDead;
+
             if (m_Renderer != null)
+            {
+                m_Renderer.enabled = !dead;
                 m_Renderer.color = Color.Lerp(new Color(1f, 0.3f, 0.3f), m_BaseColor, m_State.Health / 100f);
+            }
+            if (m_Collider != null) m_Collider.enabled = !dead;
 
             if (m_AimLine == null) return;
+            m_AimLine.enabled = !dead;
+            if (dead) return;
 
             Vector2 origin = m_State.Position;
             Vector2 direction = m_LastInput.AimDirection;

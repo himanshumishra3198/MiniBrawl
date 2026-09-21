@@ -22,8 +22,10 @@ namespace MiniBrawl.Networking.Session
         NetworkManager m_Manager;
         GameObject m_Panel;
         Text m_Status;
+        Text m_DeviceLabel;
         InputField m_AddressField;
         bool m_WasConnected;
+        float m_IpAge;
 
         void Start()
         {
@@ -37,16 +39,26 @@ namespace MiniBrawl.Networking.Session
             if (m_Manager == null || m_Panel == null) return;
 
             bool connected = m_Manager.IsServerStarted || m_Manager.IsClientStarted;
-            if (connected == m_WasConnected) return;
+            if (connected != m_WasConnected)
+            {
+                m_WasConnected = connected;
+                m_Panel.SetActive(!connected);
+            }
 
-            m_WasConnected = connected;
-            m_Panel.SetActive(!connected);
+            // Turning on a hotspot changes this device's address while the menu is open, so keep
+            // it live rather than resolving once at startup.
+            if (connected) return;
+            m_IpAge -= Time.unscaledDeltaTime;
+            if (m_IpAge > 0f) return;
+
+            m_IpAge = 2f;
+            m_DeviceLabel.text = $"this device: {LocalIpResolver.Resolve()}";
         }
 
         void OnHost()
         {
-            m_Status.text = $"hosting on {LocalIpResolver.Resolve()}:{NetworkConstants.GamePort}\n" +
-                            "type that address on the other phone";
+            // The address is also shown in the HUD, because this panel hides once hosting starts.
+            m_Status.text = $"hosting on {LocalIpResolver.Resolve()}:{NetworkConstants.GamePort}";
             m_Bootstrap.StartHost();
         }
 
@@ -84,8 +96,10 @@ namespace MiniBrawl.Networking.Session
             m_AddressField = AddressField(m_Panel.transform, new Vector2(0f, -40f), new Vector2(700f, 100f));
             Label(m_Panel.transform, "host's address", 28, new Vector2(0f, 30f), new Vector2(700f, 40f));
 
-            m_Status = Label(m_Panel.transform, $"this device: {LocalIpResolver.Resolve()}", 30,
-                new Vector2(0f, -190f), new Vector2(1200f, 120f));
+            m_DeviceLabel = Label(m_Panel.transform, "this device: …", 36,
+                new Vector2(0f, -170f), new Vector2(1200f, 60f));
+            m_Status = Label(m_Panel.transform, "", 28,
+                new Vector2(0f, -240f), new Vector2(1200f, 80f));
         }
 
         static GameObject Panel(Transform parent)

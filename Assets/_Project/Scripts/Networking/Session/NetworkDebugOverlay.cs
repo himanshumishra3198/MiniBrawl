@@ -1,7 +1,9 @@
 using System.Linq;
 using FishNet;
 using FishNet.Managing;
+using MiniBrawl.Config;
 using MiniBrawl.Networking.Replication;
+using MiniBrawl.Platform;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +19,8 @@ namespace MiniBrawl.Networking.Session
 
         NetworkManager m_Manager;
         NetworkPlayerMotor m_Local;
+        string m_LocalIp = "…";
+        float m_IpAge;
         float m_SmoothedFps;
         uint m_ReconcilesAtWindowStart;
         float m_WindowElapsed;
@@ -48,6 +52,21 @@ namespace MiniBrawl.Networking.Session
             string role = server && client ? "host" : server ? "server" : client ? "client" : "offline";
             int connections = server ? m_Manager.ServerManager.Clients.Count : 0;
 
+            /* The host's address belongs here rather than on the menu, which hides the moment
+             * hosting starts. Re-resolved periodically because turning on a hotspot changes the
+             * address underneath a running app. */
+            string hosting = "";
+            if (server)
+            {
+                m_IpAge -= dt;
+                if (m_IpAge <= 0f)
+                {
+                    m_LocalIp = LocalIpResolver.Resolve();
+                    m_IpAge = 2f;
+                }
+                hosting = $"\nJOIN THIS: {m_LocalIp}:{NetworkConstants.GamePort}";
+            }
+
             string local = m_Local == null
                 ? "no local player"
                 : $"pos {m_Local.State.Position.x:0.0}, {m_Local.State.Position.y:0.0}  " +
@@ -55,7 +74,7 @@ namespace MiniBrawl.Networking.Session
                   $"corrections {m_Local.Corrections}  err {m_Local.LastError:0.000}";
 
             Readout.text =
-                $"{role}  |  fps {m_SmoothedFps:0}  |  rtt {m_Manager.TimeManager.RoundTripTime} ms\n" +
+                $"{role}  |  fps {m_SmoothedFps:0}  |  rtt {m_Manager.TimeManager.RoundTripTime} ms{hosting}\n" +
                 $"tick {m_Manager.TimeManager.LocalTick}  |  clients {connections}  |  " +
                 $"reconciles/s {m_ReconcilesPerSecond:0.0}\n" +
                 local;

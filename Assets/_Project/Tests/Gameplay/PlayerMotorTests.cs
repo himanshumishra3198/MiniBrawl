@@ -77,5 +77,42 @@ namespace MiniBrawl.Gameplay.Tests
             Assert.IsTrue(s.Grounded);
             Assert.AreEqual(0f, s.Velocity.y, 1e-4f);
         }
+
+        [Test]
+        public void DeadPlayer_HoldsStill_AndCountsDownToRespawn()
+        {
+            var s = PlayerState.Spawn(new Vector2(3f, 2f), 1f);
+            s.Health = 0;
+            s.RespawnIn = 3f;
+
+            // Full input: a corpse must ignore it entirely, including gravity.
+            var input = new PlayerInput { MoveX = 127, Buttons = PlayerInput.BtnJetpack };
+            s = PlayerMotor.Simulate(s, input, MotorConfig.Default, new NoWorld(), Dt);
+
+            Assert.AreEqual(new Vector2(3f, 2f), s.Position, "the body should not drift");
+            Assert.AreEqual(Vector2.zero, s.Velocity);
+            Assert.AreEqual(3f - Dt, s.RespawnIn, 1e-4f);
+        }
+
+        [Test]
+        public void RespawnTimer_StopsAtZero_RatherThanGoingNegative()
+        {
+            var s = PlayerState.Spawn(Vector2.zero, 1f);
+            s.Health = 0;
+            s.RespawnIn = Dt / 2f;
+
+            s = PlayerMotor.Simulate(s, default, MotorConfig.Default, new NoWorld(), Dt);
+            s = PlayerMotor.Simulate(s, default, MotorConfig.Default, new NoWorld(), Dt);
+
+            Assert.AreEqual(0f, s.RespawnIn, "the server respawns at zero, so it must not run past it");
+        }
+
+        [Test]
+        public void SpawningAlive_ClearsTheRespawnTimer()
+        {
+            var s = PlayerState.Spawn(Vector2.zero, 1f);
+            Assert.AreEqual(0f, s.RespawnIn);
+            Assert.IsFalse(s.IsDead);
+        }
     }
 }
