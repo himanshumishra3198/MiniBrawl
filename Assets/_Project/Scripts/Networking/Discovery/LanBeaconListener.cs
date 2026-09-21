@@ -123,7 +123,9 @@ namespace MiniBrawl.Networking.Discovery
                 };
 
                 if (!m_Rooms.ContainsKey(room.Key))
-                    Debug.Log($"[LanBeacon] found host {room.Describe()}");
+                    Debug.Log($"[LanBeacon] found host '{room.HostName}' at {room.Key} " +
+                              $"({room.Players}/{room.MaxPlayers}, " +
+                              $"{(room.Compatible ? "compatible" : "different version")})");
 
                 m_Rooms[room.Key] = room;
             }
