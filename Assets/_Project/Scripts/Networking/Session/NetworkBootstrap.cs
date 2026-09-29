@@ -30,6 +30,9 @@ namespace MiniBrawl.Networking.Session
         public string Address => m_Address;
         public ushort Port => m_Port;
 
+        /// <summary>True when the player chose to leave, so recovery knows not to fight it.</summary>
+        public bool StoppedIntentionally { get; private set; }
+
         /// <summary>Set by -autopilot: players drive themselves, for headless testing.</summary>
         public static bool Autopilot { get; private set; }
 
@@ -78,6 +81,8 @@ namespace MiniBrawl.Networking.Session
         public void Stop()
         {
             if (m_Manager == null) return;
+
+            StoppedIntentionally = true;
             m_Manager.ClientManager.StopConnection();
             m_Manager.ServerManager.StopConnection(sendDisconnectMessage: true);
             m_Mode = StartMode.None;
@@ -89,11 +94,16 @@ namespace MiniBrawl.Networking.Session
 
             m_Mode = mode;
             m_Address = address;
+            StoppedIntentionally = false;
 
             if (m_Manager.TransportManager.Transport is Tugboat tugboat)
             {
                 tugboat.SetPort(m_Port);
                 tugboat.SetClientAddress(address);
+
+                // Tugboat's default is thirty minutes; see the constant for why that will not do.
+                tugboat.SetTimeout(NetworkConstants.ConnectionTimeoutSeconds, asServer: true);
+                tugboat.SetTimeout(NetworkConstants.ConnectionTimeoutSeconds, asServer: false);
             }
 
             switch (mode)

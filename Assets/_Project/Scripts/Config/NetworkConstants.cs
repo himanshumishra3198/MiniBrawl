@@ -18,5 +18,13 @@ namespace MiniBrawl.Config
         public const int SnapshotSendRate   = 20;
         public const int MaxPlayers         = 6;
         public const float ReconnectWindowSeconds = 45f;
+
+        /// <summary>
+        /// How long a silent peer is tolerated before the transport calls it gone. Tugboat defaults
+        /// to 1800 (thirty minutes), which on a phone means someone who walks out of Wi-Fi range
+        /// keeps a body standing in the level and a seat in the roster for the rest of the session.
+        /// Ten seconds rides out a brief blip, and the reconnect window above covers the rest.
+        /// </summary>
+        public const float ConnectionTimeoutSeconds = 10f;
     }
 }

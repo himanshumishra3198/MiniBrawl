@@ -3,6 +3,7 @@ using System.Linq;
 using FishNet.Connection;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
+using MiniBrawl.Config;
 using MiniBrawl.Gameplay.Rules;
 using UnityEngine;
 
@@ -68,10 +69,32 @@ namespace MiniBrawl.Networking.Match
             int players = m_Slots.Count(pair => pair.Value.Connected);
             int topScore = m_Slots.Count == 0 ? 0 : m_Slots.Max(pair => pair.Value.Kills);
 
+            ExpireAbandonedSlots();
+
             MatchPhase next = MatchRules.Advance(m_Phase.Value, m_PhaseElapsed.Value, players, topScore, m_Settings);
             if (next == m_Phase.Value) return;
 
             EnterPhase(next);
+        }
+
+        /// <summary>
+        /// A held seat is only worth holding for as long as someone might come back to it (§2.7).
+        /// Past the window it is released, so the roster reflects who is actually playing.
+        /// </summary>
+        void ExpireAbandonedSlots()
+        {
+            float now = Time.time;
+
+            foreach (string id in m_Slots.Keys.ToList())
+            {
+                PlayerSlot slot = m_Slots[id];
+                if (slot.Connected) continue;
+                if (now - slot.DisconnectedAt < NetworkConstants.ReconnectWindowSeconds) continue;
+
+                m_Slots.Remove(id);
+                Debug.Log($"[Match] {slot.Name} did not return within " +
+                          $"{NetworkConstants.ReconnectWindowSeconds}s; seat released");
+            }
         }
 
         void EnterPhase(MatchPhase phase)
@@ -124,8 +147,9 @@ namespace MiniBrawl.Networking.Match
             foreach (string id in m_Slots.Keys.ToList())
             {
                 if (m_Slots[id].ClientId != clientId) continue;
-                m_Slots[id] = m_Slots[id].WithConnection(-1);
-                Debug.Log($"[Match] {m_Slots[id].Name} disconnected; slot held");
+                m_Slots[id] = m_Slots[id].WithConnection(-1, Time.time);
+                Debug.Log($"[Match] {m_Slots[id].Name} disconnected; seat held for " +
+                          $"{NetworkConstants.ReconnectWindowSeconds}s");
             }
         }
 

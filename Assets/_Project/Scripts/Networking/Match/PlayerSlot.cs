@@ -21,6 +21,9 @@ namespace MiniBrawl.Networking.Match
         /// <summary>Current connection, or -1 while the seat is held for someone who dropped.</summary>
         public int ClientId;
 
+        /// <summary>Server time the player dropped; the seat is released once the window passes.</summary>
+        public float DisconnectedAt;
+
         public bool Connected => ClientId >= 0;
 
         public static PlayerSlot Create(string playerId, string name, byte colorIndex, int clientId) =>
@@ -42,10 +45,11 @@ namespace MiniBrawl.Networking.Match
             return copy;
         }
 
-        public PlayerSlot WithConnection(int clientId)
+        public PlayerSlot WithConnection(int clientId, float now = 0f)
         {
             PlayerSlot copy = this;
             copy.ClientId = clientId;
+            copy.DisconnectedAt = clientId >= 0 ? 0f : now;
             return copy;
         }
     }

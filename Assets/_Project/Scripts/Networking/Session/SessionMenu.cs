@@ -24,6 +24,7 @@ namespace MiniBrawl.Networking.Session
         NetworkBootstrap m_Bootstrap;
         NetworkManager m_Manager;
         LanBeaconListener m_Listener;
+        SessionRecovery m_Recovery;
 
         GameObject m_Panel;
         Text m_Status;
@@ -39,6 +40,7 @@ namespace MiniBrawl.Networking.Session
         {
             m_Bootstrap = FindFirstObjectByType<NetworkBootstrap>();
             m_Listener = FindFirstObjectByType<LanBeaconListener>();
+            m_Recovery = FindFirstObjectByType<SessionRecovery>();
             m_Manager = InstanceFinder.NetworkManager;
 
             BuildUi();
@@ -62,6 +64,11 @@ namespace MiniBrawl.Networking.Session
             }
 
             if (connected) return;
+
+            // Recovery owns the status line while it is trying, so the player sees why they are
+            // looking at a menu instead of the match.
+            if (m_Recovery != null && !string.IsNullOrEmpty(m_Recovery.Status))
+                m_Status.text = m_Recovery.Status;
 
             RefreshRooms();
 

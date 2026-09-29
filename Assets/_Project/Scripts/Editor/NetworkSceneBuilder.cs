@@ -125,6 +125,7 @@ public static class NetworkSceneBuilder
         go.AddComponent<HostAdvertiser>();
         go.AddComponent<LanBeaconListener>();
 
+        go.AddComponent<SessionRecovery>();
         go.AddComponent<SessionMenu>();
         go.AddComponent<NetworkTelemetry>();
 
