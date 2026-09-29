@@ -3,6 +3,7 @@ using FishNet;
 using FishNet.Managing;
 using MiniBrawl.Config;
 using MiniBrawl.Networking.Discovery;
+using MiniBrawl.Networking.Identity;
 using MiniBrawl.Platform;
 using UnityEngine;
 using UnityEngine.UI;
@@ -31,6 +32,7 @@ namespace MiniBrawl.Networking.Session
         Text m_DeviceLabel;
         Text m_RoomsHeader;
         InputField m_AddressField;
+        InputField m_NameField;
         readonly List<(Button button, Text label)> m_Rows = new();
 
         bool m_WasConnected;
@@ -105,6 +107,7 @@ namespace MiniBrawl.Networking.Session
         void OnHost()
         {
             // The address is also shown in the HUD, because this panel hides once hosting starts.
+            m_Recovery?.Reset();
             m_Status.text = $"hosting on {LocalIpResolver.Resolve()}:{NetworkConstants.GamePort}";
             m_Bootstrap.StartHost();
         }
@@ -130,6 +133,9 @@ namespace MiniBrawl.Networking.Session
 
         void Join(string address, ushort port)
         {
+            // The player has chosen, so a later drop is worth recovering from again.
+            m_Recovery?.Reset();
+
             PlayerPrefs.SetString(k_AddressKey, address);
             m_Status.text = $"connecting to {address}:{port}…";
             m_Bootstrap.StartClient(address, port);
@@ -164,6 +170,9 @@ namespace MiniBrawl.Networking.Session
                 row.gameObject.SetActive(false);
                 m_Rows.Add((row, row.GetComponentInChildren<Text>()));
             }
+
+            m_NameField = NameField(panel, new Vector2(0f, -230f), new Vector2(620f, 84f));
+            Label(panel, "your name", 24, new Vector2(0f, -180f), new Vector2(620f, 32f));
 
             Label(panel, "or type the host's address", 26, new Vector2(0f, -290f), new Vector2(900f, 36f));
             m_AddressField = AddressField(panel, new Vector2(-180f, -360f), new Vector2(620f, 90f));
@@ -220,9 +229,26 @@ namespace MiniBrawl.Networking.Session
             return button;
         }
 
+        /// <summary>Saved as it changes, so the name is already set by the time a slot is claimed.</summary>
+        static InputField NameField(Transform parent, Vector2 position, Vector2 dimensions)
+        {
+            InputField field = BuildField(parent, position, dimensions);
+            field.characterLimit = 16;
+            field.text = PlayerIdentity.Name;
+            field.onEndEdit.AddListener(value => PlayerIdentity.Name = value);
+            return field;
+        }
+
         static InputField AddressField(Transform parent, Vector2 position, Vector2 dimensions)
         {
-            var go = new GameObject("AddressField", typeof(RectTransform), typeof(Image), typeof(InputField));
+            InputField field = BuildField(parent, position, dimensions);
+            field.text = PlayerPrefs.GetString(k_AddressKey, "192.168.43.1");
+            return field;
+        }
+
+        static InputField BuildField(Transform parent, Vector2 position, Vector2 dimensions)
+        {
+            var go = new GameObject("InputField", typeof(RectTransform), typeof(Image), typeof(InputField));
             go.transform.SetParent(parent, false);
             Place((RectTransform)go.transform, position, dimensions);
             go.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
@@ -239,7 +265,6 @@ namespace MiniBrawl.Networking.Session
             field.textComponent = text;
             field.contentType = InputField.ContentType.Standard;
             field.lineType = InputField.LineType.SingleLine;
-            field.text = PlayerPrefs.GetString(k_AddressKey, "192.168.43.1");
             return field;
         }
 

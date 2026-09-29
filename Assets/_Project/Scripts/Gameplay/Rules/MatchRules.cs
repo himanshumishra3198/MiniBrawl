@@ -43,14 +43,17 @@ namespace MiniBrawl.Gameplay.Rules
         /// Decides the phase after <paramref name="elapsed"/> seconds in the current one.
         /// Returns the same phase when nothing should change.
         /// </summary>
-        public static MatchPhase Advance(MatchPhase current, float elapsed, int players, int topScore,
-                                         in MatchSettings settings)
+        public static MatchPhase Advance(MatchPhase current, float elapsed, int players, int ready,
+                                         int topScore, in MatchSettings settings)
         {
             switch (current)
             {
                 case MatchPhase.Lobby:
-                    // Countdown starts on its own once enough people are here.
-                    return players >= settings.MinimumPlayers ? MatchPhase.Countdown : MatchPhase.Lobby;
+                    // Everyone present has to be ready, so nobody is dropped into a match while
+                    // still picking a name.
+                    return players >= settings.MinimumPlayers && ready >= players
+                        ? MatchPhase.Countdown
+                        : MatchPhase.Lobby;
 
                 case MatchPhase.Countdown:
                     // Someone leaving during the countdown sends everyone back to waiting.

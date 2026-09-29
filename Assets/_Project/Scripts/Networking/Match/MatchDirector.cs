@@ -67,11 +67,13 @@ namespace MiniBrawl.Networking.Match
             m_PhaseElapsed.Value += Time.deltaTime;
 
             int players = m_Slots.Count(pair => pair.Value.Connected);
+            int ready = m_Slots.Count(pair => pair.Value.Connected && pair.Value.Ready);
             int topScore = m_Slots.Count == 0 ? 0 : m_Slots.Max(pair => pair.Value.Kills);
 
             ExpireAbandonedSlots();
 
-            MatchPhase next = MatchRules.Advance(m_Phase.Value, m_PhaseElapsed.Value, players, topScore, m_Settings);
+            MatchPhase next = MatchRules.Advance(m_Phase.Value, m_PhaseElapsed.Value, players, ready,
+                                                 topScore, m_Settings);
             if (next == m_Phase.Value) return;
 
             EnterPhase(next);
@@ -106,6 +108,10 @@ namespace MiniBrawl.Networking.Match
             // A new match starts from zero; the scoreboard after one should not.
             if (phase == MatchPhase.Countdown) ResetScores();
 
+            // Back in the lobby everyone opts in again, so a rematch is a choice rather than a
+            // default someone gets dragged into while putting their phone down.
+            if (phase == MatchPhase.Lobby) ClearReady();
+
             Debug.Log($"[Match] {previous} -> {phase} ({m_Slots.Count} in roster)");
         }
 
@@ -113,6 +119,41 @@ namespace MiniBrawl.Networking.Match
         {
             foreach (string id in m_Slots.Keys.ToList())
                 m_Slots[id] = m_Slots[id].WithScore(0, 0);
+        }
+
+        void ClearReady()
+        {
+            foreach (string id in m_Slots.Keys.ToList())
+                m_Slots[id] = m_Slots[id].WithReady(false);
+        }
+
+        /// <summary>Called by a client to opt in or out of the next match.</summary>
+        [ServerRpc(RequireOwnership = false)]
+        public void SetReady(string playerId, bool ready, NetworkConnection connection = null)
+        {
+            if (!m_Slots.TryGetValue(playerId, out PlayerSlot slot)) return;
+
+            m_Slots[playerId] = slot.WithReady(ready);
+            Debug.Log($"[Match] {slot.Name} is {(ready ? "ready" : "not ready")}");
+        }
+
+        /// <summary>Called by a client that has chosen a name or colour.</summary>
+        [ServerRpc(RequireOwnership = false)]
+        public void SetIdentity(string playerId, string name, byte colorIndex, NetworkConnection connection = null)
+        {
+            if (!m_Slots.TryGetValue(playerId, out PlayerSlot slot)) return;
+
+            m_Slots[playerId] = slot.WithName(name, (byte)(colorIndex % PlayerColors.Count));
+        }
+
+        /// <summary>The colour this connection was given, for tinting their square.</summary>
+        public Color ColorFor(int clientId)
+        {
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots)
+                if (pair.Value.ClientId == clientId)
+                    return PlayerColors.Get(pair.Value.ColorIndex);
+
+            return PlayerColors.Get(0);
         }
 
         /// <summary>

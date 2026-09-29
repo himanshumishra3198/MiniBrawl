@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using MiniBrawl.Gameplay.Rules;
+using MiniBrawl.Networking.Identity;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,6 +17,10 @@ namespace MiniBrawl.Networking.Match
         public Text Scoreboard;
         public Text KillFeed;
 
+        [Tooltip("Shown in the lobby only; lets the local player opt into the next match.")]
+        public Button ReadyButton;
+        public Text ReadyLabel;
+
         const int k_FeedLength = 4;
         const float k_FeedEntrySeconds = 6f;
 
@@ -30,14 +35,42 @@ namespace MiniBrawl.Networking.Match
                 if (m_Director == null)
                 {
                     if (Banner != null) Banner.text = "";
+                    if (ReadyButton != null) ReadyButton.gameObject.SetActive(false);
                     return;
                 }
                 m_Director.KillReported += OnKillReported;
+                if (ReadyButton != null) ReadyButton.onClick.AddListener(OnReadyClicked);
             }
 
             DrawBanner();
             DrawScoreboard();
             DrawKillFeed();
+            DrawReadyButton();
+        }
+
+        void DrawReadyButton()
+        {
+            if (ReadyButton == null) return;
+
+            // Only meaningful in the lobby; during a match it would just be in the way.
+            bool inLobby = m_Director.Phase == MatchPhase.Lobby;
+            ReadyButton.gameObject.SetActive(inLobby);
+            if (!inLobby) return;
+
+            bool ready = m_Director.Slots.TryGetValue(PlayerIdentity.Id, out PlayerSlot mine) && mine.Ready;
+            if (ReadyLabel != null) ReadyLabel.text = ready ? "READY ✓" : "TAP WHEN READY";
+
+            var image = ReadyButton.GetComponent<Image>();
+            if (image != null)
+                image.color = ready ? new Color(0.55f, 0.95f, 0.45f, 0.35f) : new Color(1f, 1f, 1f, 0.15f);
+        }
+
+        void OnReadyClicked()
+        {
+            if (m_Director == null) return;
+
+            bool ready = m_Director.Slots.TryGetValue(PlayerIdentity.Id, out PlayerSlot mine) && mine.Ready;
+            m_Director.SetReady(PlayerIdentity.Id, !ready);
         }
 
         void OnDestroy()
@@ -61,12 +94,26 @@ namespace MiniBrawl.Networking.Match
 
             Banner.text = m_Director.Phase switch
             {
-                MatchPhase.Lobby => $"WAITING FOR PLAYERS  ({CountConnected()}/{m_Director.Settings.MinimumPlayers})",
+                MatchPhase.Lobby => LobbyLine(),
                 MatchPhase.Countdown => $"STARTING IN {Mathf.CeilToInt(remaining)}",
                 MatchPhase.Playing => $"{Mathf.FloorToInt(remaining / 60f)}:{Mathf.FloorToInt(remaining % 60f):00}",
                 MatchPhase.MatchEnd => WinnerLine(),
                 _ => "",
             };
+        }
+
+        string LobbyLine()
+        {
+            int connected = CountConnected();
+            int minimum = m_Director.Settings.MinimumPlayers;
+
+            if (connected < minimum) return $"WAITING FOR PLAYERS  ({connected}/{minimum})";
+
+            int ready = 0;
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Director.Slots)
+                if (pair.Value.Connected && pair.Value.Ready) ready++;
+
+            return $"READY  {ready}/{connected}";
         }
 
         string WinnerLine()
@@ -99,6 +146,14 @@ namespace MiniBrawl.Networking.Match
             foreach (PlayerSlot slot in m_Director.Standings())
             {
                 string name = slot.Connected ? slot.Name : $"{slot.Name} (away)";
+
+                // In the lobby the useful column is who is ready, not who is winning.
+                if (m_Director.Phase == MatchPhase.Lobby)
+                {
+                    text.AppendLine($"{name,-16} {(slot.Ready ? "ready" : "…")}");
+                    continue;
+                }
+
                 text.AppendLine(detailed
                     ? $"{name,-16} {slot.Kills,3} kills  {slot.Deaths,3} deaths"
                     : $"{name,-16} {slot.Kills,3}");

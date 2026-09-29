@@ -18,6 +18,9 @@ namespace MiniBrawl.Networking.Match
         public int Kills;
         public int Deaths;
 
+        /// <summary>Ready to start. Cleared between matches so nobody is dragged into a rematch.</summary>
+        public bool Ready;
+
         /// <summary>Current connection, or -1 while the seat is held for someone who dropped.</summary>
         public int ClientId;
 
@@ -42,6 +45,21 @@ namespace MiniBrawl.Networking.Match
             PlayerSlot copy = this;
             copy.Kills = kills;
             copy.Deaths = deaths;
+            return copy;
+        }
+
+        public PlayerSlot WithReady(bool ready)
+        {
+            PlayerSlot copy = this;
+            copy.Ready = ready;
+            return copy;
+        }
+
+        public PlayerSlot WithName(string name, byte colorIndex)
+        {
+            PlayerSlot copy = this;
+            if (!string.IsNullOrWhiteSpace(name)) copy.Name = name;
+            copy.ColorIndex = colorIndex;
             return copy;
         }
 

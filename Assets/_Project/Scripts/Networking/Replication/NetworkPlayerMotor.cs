@@ -62,6 +62,9 @@ namespace MiniBrawl.Networking.Replication
             public byte Health;
             public bool Grounded;
 
+            /// <summary>Input has stopped arriving: hidden and untouchable until it resumes.</summary>
+            public bool Absent;
+
             uint _tick;
 
             public StateData(PlayerState state, WeaponState weapon)
@@ -73,6 +76,7 @@ namespace MiniBrawl.Networking.Replication
                 Health = state.Health;
                 Grounded = state.Grounded;
                 WeaponCooldown = weapon.Cooldown;
+                Absent = false;
                 _tick = 0;
             }
 
@@ -130,7 +134,16 @@ namespace MiniBrawl.Networking.Replication
         Vector2 m_SpawnPoint;
         float m_TracerRemaining;
 
+        /// <summary>
+        /// Ticks of silence before a player counts as absent. Roughly a second — long enough that
+        /// ordinary packet loss does not trigger it, short enough that a dropped player stops being
+        /// a free target well inside the transport's own timeout.
+        /// </summary>
+        const uint k_AbsentAfterTicks = 30;
+
         bool m_SlotClaimed;
+        bool m_Absent;
+        uint m_LastInputTick;
         uint m_Reconciles;
         uint m_Corrections;
         float m_LastError;
@@ -200,6 +213,10 @@ namespace MiniBrawl.Networking.Replication
             if (director == null) return;
 
             director.ClaimSlot(PlayerIdentity.Id, PlayerIdentity.Name);
+
+            // Bots have no thumbs to tap READY with, and a headless test would sit in the lobby.
+            if (Session.NetworkBootstrap.Autopilot) director.SetReady(PlayerIdentity.Id, true);
+
             m_SlotClaimed = true;
         }
 
@@ -221,7 +238,11 @@ namespace MiniBrawl.Networking.Replication
             return new MoveData(m_LastInput);
         }
 
-        public override void CreateReconcile() => PerformReconcile(new StateData(m_State, m_Weapon));
+        public override void CreateReconcile()
+        {
+            var data = new StateData(m_State, m_Weapon) { Absent = m_Absent };
+            PerformReconcile(data);
+        }
 
         [Replicate]
         void PerformReplicate(MoveData md, ReplicateState state = ReplicateState.Invalid,
@@ -229,6 +250,16 @@ namespace MiniBrawl.Networking.Replication
         {
             // TickDelta, never Time.deltaTime: this runs many times per frame during a replay.
             float delta = (float)TimeManager.TickDelta;
+
+            /* A player whose input has stopped arriving stands motionless in the level until the
+             * transport gives up on them. Ten seconds is a long time to be an effortless target, so
+             * they are marked absent well before that and cannot be shot — losing Wi-Fi should not
+             * cost you deaths you had no chance to avoid. */
+            if (IsServerStarted && state.ContainsTicked())
+            {
+                if (!state.IsFuture()) m_LastInputTick = TimeManager.Tick;
+                m_Absent = TimeManager.Tick - m_LastInputTick > k_AbsentAfterTicks;
+            }
 
             m_LastInput = md.ToInput();
             m_State = PlayerMotor.Simulate(m_State, m_LastInput, m_Config, m_World, delta);
@@ -265,7 +296,7 @@ namespace MiniBrawl.Networking.Replication
 
             if (hit.Collider.TryGetComponent(out NetworkPlayerMotor victim) && victim != this)
             {
-                if (victim.m_State.IsDead) return;   // no shooting corpses
+                if (victim.m_State.IsDead || victim.m_Absent) return;   // no corpses, no absentees
                 victim.ApplyDamage(m_WeaponConfig.Damage, OwnerId);
                 Hits++;
             }
@@ -311,6 +342,7 @@ namespace MiniBrawl.Networking.Replication
 
             m_State = rd.ToState();
             m_Weapon.Cooldown = rd.WeaponCooldown;
+            m_Absent = rd.Absent;
             transform.position = m_State.Position;
         }
 
@@ -320,10 +352,14 @@ namespace MiniBrawl.Networking.Replication
 
             /* Health and the respawn timer are reconciled to everyone, so hiding a dead player
              * needs no extra synchronisation — every machine reaches the same conclusion. */
-            bool dead = m_State.IsDead;
+            bool dead = m_State.IsDead || m_Absent;
 
             if (m_Renderer != null)
             {
+                // The roster owns the colour, so every machine paints each player the same.
+                Match.MatchDirector director = Match.MatchDirector.Instance;
+                if (director != null) m_BaseColor = director.ColorFor(OwnerId);
+
                 m_Renderer.enabled = !dead;
                 m_Renderer.color = Color.Lerp(new Color(1f, 0.3f, 0.3f), m_BaseColor, m_State.Health / 100f);
             }

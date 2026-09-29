@@ -194,10 +194,20 @@ public static class NetworkSceneBuilder
         Text killFeed = PrototypeSceneBuilder.Label("KillFeed", canvas, 28, TextAnchor.UpperRight);
         Anchor(killFeed.rectTransform, new Vector2(1f, 1f), new Vector2(-44f, -420f), new Vector2(760f, 200f));
 
+        // Ready button sits centre-bottom, clear of both thumbsticks.
+        Image readyImage = PrototypeSceneBuilder.MakeImage("ReadyButton", canvas, square,
+            new Color(1f, 1f, 1f, 0.15f), new Vector2(0.5f, 0f), new Vector2(0f, 190f),
+            new Vector2(640f, 130f));
+        var readyButton = readyImage.gameObject.AddComponent<Button>();
+        Text readyLabel = PrototypeSceneBuilder.Label("Label", readyImage.transform, 40, TextAnchor.MiddleCenter);
+        PrototypeSceneBuilder.Stretch(readyLabel.rectTransform);
+
         var matchHud = canvasGo.AddComponent<MatchHud>();
         matchHud.Banner = banner;
         matchHud.Scoreboard = scoreboard;
         matchHud.KillFeed = killFeed;
+        matchHud.ReadyButton = readyButton;
+        matchHud.ReadyLabel = readyLabel;
     }
 
     static void Anchor(RectTransform rt, Vector2 anchor, Vector2 position, Vector2 dimensions)

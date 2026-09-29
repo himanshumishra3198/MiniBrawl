@@ -36,6 +36,13 @@ namespace MiniBrawl.Networking.Session
 
         public bool IsRecovering { get; private set; }
 
+        /// <summary>
+        /// Set once we stop trying. Without it the final failed attempt reports another disconnect,
+        /// which starts recovery again — an endless "reconnecting… / host left" loop. Cleared only
+        /// when the player chooses to connect to something.
+        /// </summary>
+        bool m_GaveUp;
+
         /// <summary>Human-readable state for the menu.</summary>
         public string Status { get; private set; } = "";
 
@@ -64,7 +71,7 @@ namespace MiniBrawl.Networking.Session
                 return;
             }
 
-            if (args.ConnectionState != LocalConnectionState.Stopped || IsRecovering) return;
+            if (args.ConnectionState != LocalConnectionState.Stopped || IsRecovering || m_GaveUp) return;
 
             // Hosts do not reconnect to themselves, and leaving on purpose should stay left.
             if (m_Manager.IsServerStarted) return;
@@ -90,8 +97,12 @@ namespace MiniBrawl.Networking.Session
         void Stop()
         {
             IsRecovering = false;
+            m_GaveUp = false;
             Status = "";
         }
+
+        /// <summary>Called when the player picks a game, so a fresh attempt is allowed to recover.</summary>
+        public void Reset() => Stop();
 
         void Update()
         {
@@ -136,6 +147,7 @@ namespace MiniBrawl.Networking.Session
         {
             Debug.Log($"[Recovery] giving up: {reason}");
             IsRecovering = false;
+            m_GaveUp = true;
             Status = reason;
         }
 
