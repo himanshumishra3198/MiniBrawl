@@ -42,6 +42,7 @@ public static class NetworkSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         PrototypeSceneBuilder.BuildCamera();
+        PrototypeSceneBuilder.BuildEffects(square);
         PrototypeSceneBuilder.BuildLevel(square, levelLayer);
         BuildNetworkManager(prefab, director);
         BuildHud(square);

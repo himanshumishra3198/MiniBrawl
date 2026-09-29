@@ -2,6 +2,7 @@ using System.IO;
 using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Map;
 using MiniBrawl.Gameplay.Player;
+using MiniBrawl.Gameplay.VFX;
 using MiniBrawl.Gameplay.Weapons;
 using MiniBrawl.UI.Widgets;
 using UnityEditor;
@@ -40,6 +41,7 @@ public static class PrototypeSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         BuildCamera();
+        BuildEffects(square);
         BuildLevel(square, levelLayer);
         BuildTargets(square, hittableLayer);
         var driver = BuildPlayer(square, levelLayer, hittableLayer);
@@ -68,12 +70,21 @@ public static class PrototypeSceneBuilder
         // The room is 26 x 13 including walls, and must be fully visible on every screen or
         // players near a wall go undrawn.
         go.AddComponent<CameraFitter>();
+        go.AddComponent<ScreenShake>();
 
         // The 2D renderer's default sprite material is lit, so without a global light the scene
         // renders black on device.
         var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
         light.lightType = Light2D.LightType.Global;
         light.intensity = 1f;
+    }
+
+    /// <summary>Shared effect pools, built once so nothing allocates mid-match.</summary>
+    internal static void BuildEffects(Sprite square)
+    {
+        var go = new GameObject("Effects");
+        var sparks = go.AddComponent<HitSparks>();
+        sparks.Sprite = square;
     }
 
     internal static void BuildLevel(Sprite square, int layer)

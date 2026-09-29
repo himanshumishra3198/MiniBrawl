@@ -4,6 +4,7 @@ using FishNet.Transporting;
 using FishNet.Utility.Template;
 using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Player;
+using MiniBrawl.Gameplay.VFX;
 using MiniBrawl.Gameplay.Weapons;
 using MiniBrawl.Networking.Identity;
 using UnityEngine;
@@ -141,8 +142,12 @@ namespace MiniBrawl.Networking.Replication
         /// </summary>
         const uint k_AbsentAfterTicks = 30;
 
+        const float k_DamageFlashDuration = 0.09f;
+
         bool m_SlotClaimed;
         bool m_Absent;
+        byte m_LastSeenHealth = 100;
+        float m_DamageFlash;
         uint m_LastInputTick;
         uint m_Reconciles;
         uint m_Corrections;
@@ -303,8 +308,13 @@ namespace MiniBrawl.Networking.Replication
         {
             HitscanHit hit = m_Hitscan.Raycast(m_State.Position, direction, m_WeaponConfig.Range, m_Collider);
 
-            // Only the live tick should flash a tracer; a replay would fire the same shot again.
-            if (state.ContainsTicked()) m_TracerRemaining = k_TracerDuration;
+            // Only the live tick should show effects; a replay would fire the same shot again and
+            // a reconcile of ten ticks would spray ten bursts from one trigger pull.
+            if (state.ContainsTicked())
+            {
+                m_TracerRemaining = k_TracerDuration;
+                PlayShotEffects(direction, hit);
+            }
 
             /* §5.3: the host decides damage. Clients run this same code for the visuals but never
              * apply it, so a modified client can draw whatever it likes and still hit nothing. */
@@ -321,6 +331,51 @@ namespace MiniBrawl.Networking.Replication
                 target.TakeDamage(m_WeaponConfig.Damage);
                 Hits++;
             }
+        }
+
+        /// <summary>
+        /// Health is reconciled to everyone, so each machine can notice a hit by watching it fall.
+        /// No extra message, and it stays correct for spectated players as well as your own.
+        /// </summary>
+        void ReactToDamage()
+        {
+            byte health = m_State.Health;
+
+            if (health < m_LastSeenHealth)
+            {
+                m_DamageFlash = k_DamageFlashDuration;
+
+                HitSparks.Instance?.Burst(m_State.Position, Vector2.up,
+                    health == 0 ? new Color(1f, 0.4f, 0.35f) : m_BaseColor,
+                    count: health == 0 ? 14 : 4);
+
+                // Being shot shakes your own view harder than shooting does; watching someone else
+                // get shot should not shake yours at all.
+                if (IsOwner) ScreenShake.Instance?.Shake(health == 0 ? 0.3f : 0.12f);
+            }
+
+            m_LastSeenHealth = health;
+            if (m_DamageFlash > 0f) m_DamageFlash -= Time.deltaTime;
+        }
+
+        /// <summary>
+        /// Muzzle flash, impact sparks, and a nudge of the view for the shooter. All local and
+        /// visual: every machine runs this same code for the tick, so nothing needs sending.
+        /// </summary>
+        void PlayShotEffects(Vector2 direction, HitscanHit hit)
+        {
+            HitSparks sparks = HitSparks.Instance;
+            if (sparks != null)
+            {
+                Vector2 muzzle = m_State.Position + direction * 0.5f;
+                sparks.Burst(muzzle, direction, new Color(1f, 0.85f, 0.4f), count: 2);
+
+                if (hit.Hit)
+                    sparks.Burst(hit.Point, -direction, new Color(1f, 0.75f, 0.35f), count: 5);
+            }
+
+            // Only the shooter feels the recoil, and only lightly — this fires five times a second.
+            if (IsOwner) ScreenShake.Instance?.Shake(0.045f);
         }
 
         /// <summary>Server-only. Health is part of the reconciled state, so clients learn of it there.</summary>
@@ -365,6 +420,7 @@ namespace MiniBrawl.Networking.Replication
         void Update()
         {
             TryClaimSlot();
+            ReactToDamage();
 
             /* Health and the respawn timer are reconciled to everyone, so hiding a dead player
              * needs no extra synchronisation — every machine reaches the same conclusion. */
@@ -377,7 +433,9 @@ namespace MiniBrawl.Networking.Replication
                 if (director != null) m_BaseColor = director.ColorFor(OwnerId);
 
                 m_Renderer.enabled = !dead;
-                m_Renderer.color = Color.Lerp(new Color(1f, 0.3f, 0.3f), m_BaseColor, m_State.Health / 100f);
+                m_Renderer.color = m_DamageFlash > 0f
+                    ? Color.white   // a moment of white reads as "that hit" better than a tint shift
+                    : Color.Lerp(new Color(1f, 0.3f, 0.3f), m_BaseColor, m_State.Health / 100f);
             }
             if (m_Collider != null) m_Collider.enabled = !dead;
 
