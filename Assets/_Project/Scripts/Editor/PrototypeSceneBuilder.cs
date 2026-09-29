@@ -1,5 +1,6 @@
 using System.IO;
 using MiniBrawl.Gameplay.Combat;
+using MiniBrawl.Gameplay.Map;
 using MiniBrawl.Gameplay.Player;
 using MiniBrawl.Gameplay.Weapons;
 using MiniBrawl.UI.Widgets;
@@ -59,10 +60,14 @@ public static class PrototypeSceneBuilder
         var go = new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" };
         var cam = go.GetComponent<Camera>();
         cam.orthographic = true;
-        cam.orthographicSize = 6.5f;
+        cam.orthographicSize = 6.5f;   // a starting value; CameraFitter sets it per screen shape
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = k_Background;
         go.transform.position = new Vector3(0f, 0f, -10f);
+
+        // The room is 26 x 13 including walls, and must be fully visible on every screen or
+        // players near a wall go undrawn.
+        go.AddComponent<CameraFitter>();
 
         // The 2D renderer's default sprite material is lit, so without a global light the scene
         // renders black on device.

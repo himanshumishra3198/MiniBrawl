@@ -175,12 +175,14 @@ public static class NetworkSceneBuilder
         PrototypeSceneBuilder.Stick("RightStick", "<Gamepad>/rightStick", canvas, square,
             new Vector2(1f, 0f), new Vector2(-300f, 300f));
 
+        // Sits below the banner and clear of the scoreboard: the match clock is centred along the
+        // top, and at 1100 wide starting at the left edge this text ran straight through it.
         var readout = PrototypeSceneBuilder.Label("Readout", canvas, 30, TextAnchor.UpperLeft);
         var rt = readout.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot = new Vector2(0f, 1f);
-        rt.anchoredPosition = new Vector2(44f, -44f);
-        rt.sizeDelta = new Vector2(1100f, 160f);
+        rt.anchoredPosition = new Vector2(44f, -140f);
+        rt.sizeDelta = new Vector2(1000f, 160f);
 
         canvasGo.AddComponent<NetworkDebugOverlay>().Readout = readout;
 
@@ -202,12 +204,14 @@ public static class NetworkSceneBuilder
         Text readyLabel = PrototypeSceneBuilder.Label("Label", readyImage.transform, 40, TextAnchor.MiddleCenter);
         PrototypeSceneBuilder.Stretch(readyLabel.rectTransform);
 
-        // Leave sits top-left, away from both thumbs so it cannot be hit mid-fight.
+        /* Top-right corner, above the scoreboard. It was top-left first, which put it underneath
+         * four lines of debug readout at a quarter opacity — present in the scene, invisible on a
+         * phone. Solid enough to read as a button, and far from both thumbsticks. */
         Image leaveImage = PrototypeSceneBuilder.MakeImage("LeaveButton", canvas, square,
-            new Color(1f, 0.45f, 0.4f, 0.25f), new Vector2(0f, 1f), new Vector2(150f, -170f),
-            new Vector2(220f, 80f));
+            new Color(1f, 0.35f, 0.3f, 0.55f), new Vector2(1f, 1f), new Vector2(-150f, -70f),
+            new Vector2(240f, 90f));
         var leaveButton = leaveImage.gameObject.AddComponent<Button>();
-        Text leaveLabel = PrototypeSceneBuilder.Label("Label", leaveImage.transform, 32, TextAnchor.MiddleCenter);
+        Text leaveLabel = PrototypeSceneBuilder.Label("Label", leaveImage.transform, 34, TextAnchor.MiddleCenter);
         PrototypeSceneBuilder.Stretch(leaveLabel.rectTransform);
         leaveLabel.text = "LEAVE";
 

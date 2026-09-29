@@ -43,6 +43,9 @@ namespace MiniBrawl.Networking.Session
         /// </summary>
         bool m_GaveUp;
 
+        /// <summary>Whether this session ever established, which is what makes a drop recoverable.</summary>
+        bool m_EverConnected;
+
         /// <summary>Human-readable state for the menu.</summary>
         public string Status { get; private set; } = "";
 
@@ -67,11 +70,21 @@ namespace MiniBrawl.Networking.Session
             if (args.ConnectionState == LocalConnectionState.Started)
             {
                 if (IsRecovering) Debug.Log("[Recovery] back in");
+                m_EverConnected = true;
                 Stop();
                 return;
             }
 
             if (args.ConnectionState != LocalConnectionState.Stopped || IsRecovering || m_GaveUp) return;
+
+            /* Never getting in is not the same as being dropped. A refused connection — a full
+             * game, a wrong address, a host that has already gone — would otherwise spend 45
+             * seconds claiming to reconnect to something this player was never part of. */
+            if (!m_EverConnected)
+            {
+                Fail("could not join — the game may be full, or the address wrong");
+                return;
+            }
 
             // Hosts do not reconnect to themselves, and leaving on purpose should stay left.
             if (m_Manager.IsServerStarted) return;
@@ -102,7 +115,11 @@ namespace MiniBrawl.Networking.Session
         }
 
         /// <summary>Called when the player picks a game, so a fresh attempt is allowed to recover.</summary>
-        public void Reset() => Stop();
+        public void Reset()
+        {
+            Stop();
+            m_EverConnected = false;
+        }
 
         void Update()
         {

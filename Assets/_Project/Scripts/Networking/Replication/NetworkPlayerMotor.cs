@@ -151,6 +151,9 @@ namespace MiniBrawl.Networking.Replication
 
         public PlayerState State => m_State;
         public PlayerInput LastInput => m_LastInput;
+
+        /// <summary>Hidden because input stopped arriving. Exposed so telemetry can catch false positives.</summary>
+        public bool IsAbsent => m_Absent;
         public MotorConfig Config => m_Config;
 
         /// <summary>Hits this player has landed. Server-side truth; clients see their own guesses.</summary>

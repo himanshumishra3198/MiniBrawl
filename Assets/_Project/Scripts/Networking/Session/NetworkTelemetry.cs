@@ -63,6 +63,7 @@ namespace MiniBrawl.Networking.Session
             {
                 var p = motor.State.Position;
                 line.Append($" | owner={motor.OwnerId} pos={p.x:0.00},{p.y:0.00} " +
+                            $"{(motor.IsAbsent ? "ABSENT " : "")}" +
                             $"hp={motor.State.Health} respawnIn={motor.State.RespawnIn:0.0} " +
                             $"hits={motor.Hits} deaths={motor.Deaths} " +
                             $"fuel={motor.State.Fuel:0.00} corrections={motor.Corrections}/{motor.Reconciles} " +

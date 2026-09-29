@@ -104,6 +104,11 @@ namespace MiniBrawl.Networking.Session
                 // Tugboat's default is thirty minutes; see the constant for why that will not do.
                 tugboat.SetTimeout(NetworkConstants.ConnectionTimeoutSeconds, asServer: true);
                 tugboat.SetTimeout(NetworkConstants.ConnectionTimeoutSeconds, asServer: false);
+
+                /* The beacon advertises "3/6" and there are six spawn points and six colours, but
+                 * the transport would happily accept thousands. Without this the seventh player
+                 * joins anyway and gets a recycled colour and spawn point. */
+                tugboat.SetMaximumClients(NetworkConstants.MaxPlayers);
             }
 
             switch (mode)
