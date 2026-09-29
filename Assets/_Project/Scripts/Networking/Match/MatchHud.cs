@@ -27,8 +27,16 @@ namespace MiniBrawl.Networking.Match
         const int k_FeedLength = 4;
         const float k_FeedEntrySeconds = 6f;
 
+        /// <summary>
+        /// The clock ticks in seconds and scores change on kills, so redrawing this text 60 times a
+        /// second only produced garbage. Ten times a second is indistinguishable to the eye.
+        /// </summary>
+        const float k_RedrawInterval = 0.1f;
+
         readonly List<(string text, float time)> m_Feed = new();
+        readonly StringBuilder m_Builder = new();
         MatchDirector m_Director;
+        float m_NextRedraw;
 
         void Update()
         {
@@ -47,10 +55,15 @@ namespace MiniBrawl.Networking.Match
                 if (LeaveButton != null) LeaveButton.onClick.AddListener(OnLeaveClicked);
             }
 
+            // The ready button is cheap and wants to feel responsive; the text does not.
+            DrawReadyButton();
+
+            if (Time.unscaledTime < m_NextRedraw) return;
+            m_NextRedraw = Time.unscaledTime + k_RedrawInterval;
+
             DrawBanner();
             DrawScoreboard();
             DrawKillFeed();
-            DrawReadyButton();
         }
 
         void DrawReadyButton()
@@ -165,7 +178,8 @@ namespace MiniBrawl.Networking.Match
             // Only worth the screen space once the match is over or nearly decided.
             bool detailed = m_Director.Phase == MatchPhase.MatchEnd;
 
-            var text = new StringBuilder();
+            m_Builder.Clear();
+            StringBuilder text = m_Builder;
             foreach (PlayerSlot slot in m_Director.Standings())
             {
                 // Three states worth distinguishing: playing, silent but expected back, and gone.
@@ -192,13 +206,16 @@ namespace MiniBrawl.Networking.Match
         {
             if (KillFeed == null) return;
 
+            // A manual sweep: RemoveAll's predicate captured `now`, allocating a closure per frame.
             float now = Time.unscaledTime;
-            m_Feed.RemoveAll(entry => now - entry.time > k_FeedEntrySeconds);
+            for (int i = m_Feed.Count - 1; i >= 0; i--)
+                if (now - m_Feed[i].time > k_FeedEntrySeconds)
+                    m_Feed.RemoveAt(i);
 
-            var text = new StringBuilder();
-            foreach ((string line, float _) in m_Feed) text.AppendLine(line);
+            m_Builder.Clear();
+            foreach ((string line, float _) in m_Feed) m_Builder.AppendLine(line);
 
-            KillFeed.text = text.ToString();
+            KillFeed.text = m_Builder.ToString();
         }
     }
 }

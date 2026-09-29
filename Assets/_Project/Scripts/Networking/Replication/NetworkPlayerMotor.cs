@@ -173,8 +173,10 @@ namespace MiniBrawl.Networking.Replication
 
         public float MaxError => m_MaxError;
 
-        void Reset()
+        /// <summary>Overridden, not hidden: FishNet's Reset auto-adds the required NetworkObject.</summary>
+        protected override void Reset()
         {
+            base.Reset();
             m_Config = MotorConfig.Default;
             m_WeaponConfig = WeaponConfig.Default;
         }

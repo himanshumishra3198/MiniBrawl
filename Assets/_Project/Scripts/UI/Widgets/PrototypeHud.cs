@@ -1,4 +1,3 @@
-using System.Linq;
 using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Player;
 using MiniBrawl.Gameplay.Weapons;
@@ -16,10 +15,14 @@ namespace MiniBrawl.UI.Widgets
         public Image FuelFill;
         public Text Readout;
 
+        const float k_RedrawInterval = 0.1f;
+
+        readonly System.Text.StringBuilder m_Builder = new();
         PlayerDriver m_Driver;
         PlayerWeapon m_Weapon;
         Damageable[] m_Targets;
         float m_SmoothedFps;
+        float m_NextRedraw;
 
         void Awake()
         {
@@ -43,12 +46,22 @@ namespace MiniBrawl.UI.Widgets
 
             if (Readout == null) return;
 
+            // Sampled every frame, drawn ten times a second: the text was rebuilt at 60 fps, and
+            // the LINQ join below allocated a closure, an enumerator and a string each time.
             float dt = Time.unscaledDeltaTime;
             if (dt > 0f) m_SmoothedFps = Mathf.Lerp(m_SmoothedFps, 1f / dt, 0.1f);
 
-            string targets = m_Targets == null || m_Targets.Length == 0
-                ? "none"
-                : string.Join(" ", m_Targets.Select(t => t.IsDead ? "dead" : t.Health.ToString()));
+            if (Time.unscaledTime < m_NextRedraw) return;
+            m_NextRedraw = Time.unscaledTime + k_RedrawInterval;
+
+            m_Builder.Clear();
+            if (m_Targets == null || m_Targets.Length == 0) m_Builder.Append("none");
+            foreach (Damageable target in m_Targets)
+            {
+                m_Builder.Append(target.IsDead ? "dead" : target.Health.ToString());
+                m_Builder.Append(' ');
+            }
+            string targets = m_Builder.ToString();
 
             Readout.text =
                 $"fps {m_SmoothedFps:0}  |  tick {m_Driver.Tick}  ({m_Driver.TicksThisFrame}/frame)\n" +

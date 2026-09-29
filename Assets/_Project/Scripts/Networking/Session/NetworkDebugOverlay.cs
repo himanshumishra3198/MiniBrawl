@@ -1,4 +1,3 @@
-using System.Linq;
 using FishNet;
 using FishNet.Managing;
 using MiniBrawl.Config;
@@ -20,7 +19,7 @@ namespace MiniBrawl.Networking.Session
         NetworkManager m_Manager;
         NetworkPlayerMotor m_Local;
         string m_LocalIp = "…";
-        float m_IpAge;
+        float m_NextIpResolve;
         float m_SmoothedFps;
         uint m_ReconcilesAtWindowStart;
         float m_WindowElapsed;
@@ -28,18 +27,35 @@ namespace MiniBrawl.Networking.Session
 
         void Awake() => m_Manager = InstanceFinder.NetworkManager;
 
+        /// <summary>Redraw rate for the readout; the numbers on it do not move faster than this.</summary>
+        const float k_RedrawInterval = 0.1f;
+
+        float m_NextRedraw;
+
         void Update()
         {
             if (Readout == null) return;
 
+            /* Measured every frame, drawn ten times a second. Both of these accumulate real elapsed
+             * time, so throttling them as well would quietly skew the numbers they report. */
             float dt = Time.unscaledDeltaTime;
             if (dt > 0f) m_SmoothedFps = Mathf.Lerp(m_SmoothedFps, 1f / dt, 0.1f);
+            UpdateReconcileRate(dt);
+
+            if (Time.unscaledTime < m_NextRedraw) return;
+            m_NextRedraw = Time.unscaledTime + k_RedrawInterval;
 
             if (m_Local == null)
-                m_Local = FindObjectsByType<NetworkPlayerMotor>(FindObjectsSortMode.None)
-                    .FirstOrDefault(m => m.IsOwner);
-
-            UpdateReconcileRate(dt);
+            {
+                // FindObjectsByType already allocates an array; a LINQ pass on top added a closure
+                // and an enumerator on every frame until a local player existed.
+                foreach (NetworkPlayerMotor motor in FindObjectsByType<NetworkPlayerMotor>(FindObjectsSortMode.None))
+                {
+                    if (!motor.IsOwner) continue;
+                    m_Local = motor;
+                    break;
+                }
+            }
 
             if (m_Manager == null)
             {
@@ -58,11 +74,12 @@ namespace MiniBrawl.Networking.Session
             string hosting = "";
             if (server)
             {
-                m_IpAge -= dt;
-                if (m_IpAge <= 0f)
+                // Absolute time, not accumulated frame deltas: this block runs on the redraw
+                // schedule, so subtracting dt here would stretch two seconds into twelve.
+                if (Time.unscaledTime >= m_NextIpResolve)
                 {
                     m_LocalIp = LocalIpResolver.Resolve();
-                    m_IpAge = 2f;
+                    m_NextIpResolve = Time.unscaledTime + 2f;
                 }
                 hosting = $"\nJOIN THIS: {m_LocalIp}:{NetworkConstants.GamePort}";
             }

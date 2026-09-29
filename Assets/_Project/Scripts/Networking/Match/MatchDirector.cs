@@ -36,9 +36,23 @@ namespace MiniBrawl.Networking.Match
 
         public IReadOnlyDictionary<string, PlayerSlot> Slots => m_Slots;
 
-        /// <summary>Roster sorted for the scoreboard: most kills first, fewest deaths breaking ties.</summary>
-        public List<PlayerSlot> Standings() =>
-            m_Slots.Values.OrderByDescending(s => s.Kills).ThenBy(s => s.Deaths).ToList();
+        static readonly System.Comparison<PlayerSlot> k_ByScore =
+            (a, b) => a.Kills != b.Kills ? b.Kills.CompareTo(a.Kills) : a.Deaths.CompareTo(b.Deaths);
+
+        readonly List<PlayerSlot> m_Standings = new();
+
+        /// <summary>
+        /// Roster sorted for the scoreboard: most kills first, fewest deaths breaking ties.
+        /// Fills a reused list rather than allocating one per call — the HUD asks every time it
+        /// redraws, and this used to build a fresh list plus LINQ machinery each frame.
+        /// </summary>
+        public List<PlayerSlot> Standings()
+        {
+            m_Standings.Clear();
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots) m_Standings.Add(pair.Value);
+            m_Standings.Sort(k_ByScore);
+            return m_Standings;
+        }
 
         /// <summary>Raised on every machine when a kill is recorded, for the kill feed.</summary>
         public event System.Action<string, string> KillReported;
@@ -56,7 +70,16 @@ namespace MiniBrawl.Networking.Match
             if (Instance == this) Instance = null;
         }
 
-        void Reset() => m_Settings = MatchSettings.Default;
+        /// <summary>
+        /// Overridden, not hidden: FishNet's Reset auto-adds the NetworkObject this component
+        /// requires, so shadowing it leaves anyone adding this in the Inspector with a broken
+        /// object and no warning.
+        /// </summary>
+        protected override void Reset()
+        {
+            base.Reset();
+            m_Settings = MatchSettings.Default;
+        }
 
         public override void OnStartServer()
         {
@@ -72,9 +95,19 @@ namespace MiniBrawl.Networking.Match
 
             m_PhaseElapsed.Value += Time.deltaTime;
 
-            int players = m_Slots.Count(pair => pair.Value.Connected);
-            int ready = m_Slots.Count(pair => pair.Value.Connected && pair.Value.Ready);
-            int topScore = m_Slots.Count == 0 ? 0 : m_Slots.Max(pair => pair.Value.Kills);
+            // Counted by hand rather than with LINQ: this runs every frame on the host, and each
+            // Count/Max would allocate an enumerator and a closure.
+            int players = 0, ready = 0, topScore = 0;
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots)
+            {
+                PlayerSlot slot = pair.Value;
+                if (slot.Connected)
+                {
+                    players++;
+                    if (slot.Ready) ready++;
+                }
+                if (slot.Kills > topScore) topScore = slot.Kills;
+            }
 
             ExpireAbandonedSlots();
 
