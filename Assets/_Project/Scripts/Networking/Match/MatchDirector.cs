@@ -43,6 +43,12 @@ namespace MiniBrawl.Networking.Match
         /// <summary>Raised on every machine when a kill is recorded, for the kill feed.</summary>
         public event System.Action<string, string> KillReported;
 
+        /// <summary>
+        /// Raised for roster events — joining, dropping, returning. These used to go only to
+        /// Debug.Log, which nobody sees in a build, so a player leaving looked like nothing at all.
+        /// </summary>
+        public event System.Action<string> PlayerEventReported;
+
         void Awake() => Instance = this;
 
         void OnDestroy()
@@ -170,13 +176,15 @@ namespace MiniBrawl.Networking.Match
             if (m_Slots.TryGetValue(playerId, out PlayerSlot existing))
             {
                 // Same person, new connection: keep their score (§2.7).
-                m_Slots[playerId] = existing.WithConnection(clientId);
+                m_Slots[playerId] = existing.WithConnection(clientId).WithAbsent(false);
+                AnnouncePlayerEvent($"{existing.Name} rejoined");
                 Debug.Log($"[Match] {existing.Name} reclaimed their slot with {existing.Kills} kills");
                 return;
             }
 
-            byte color = (byte)(m_Slots.Count % 6);
+            byte color = (byte)(m_Slots.Count % PlayerColors.Count);
             m_Slots[playerId] = PlayerSlot.Create(playerId, name, color, clientId);
+            AnnouncePlayerEvent($"{m_Slots[playerId].Name} joined");
             Debug.Log($"[Match] {name} joined ({m_Slots.Count} in roster)");
         }
 
@@ -189,6 +197,7 @@ namespace MiniBrawl.Networking.Match
             {
                 if (m_Slots[id].ClientId != clientId) continue;
                 m_Slots[id] = m_Slots[id].WithConnection(-1, Time.time);
+                AnnouncePlayerEvent($"{m_Slots[id].Name} left");
                 Debug.Log($"[Match] {m_Slots[id].Name} disconnected; seat held for " +
                           $"{NetworkConstants.ReconnectWindowSeconds}s");
             }
@@ -224,5 +233,33 @@ namespace MiniBrawl.Networking.Match
 
         [ObserversRpc(RunLocally = true)]
         void AnnounceKill(string killer, string victim) => KillReported?.Invoke(killer, victim);
+
+        [ObserversRpc(RunLocally = true)]
+        void AnnouncePlayerEvent(string message)
+        {
+            // Logged as well as shown: these are the lines you want in logcat when someone reports
+            // that a player "just vanished". The tick is included because Unity only timestamps
+            // some log lines, which makes ordering and delays impossible to read otherwise.
+            Debug.Log($"[Feed] tick={TimeManager.Tick} {message}");
+            PlayerEventReported?.Invoke(message);
+        }
+
+        /// <summary>
+        /// Server-only. Input has stopped or resumed for a player, which is known within a tick —
+        /// long before the transport admits the connection is gone.
+        /// </summary>
+        public void SetAbsent(int clientId, bool absent)
+        {
+            if (!IsServerStarted) return;
+
+            foreach (string id in m_Slots.Keys.ToList())
+            {
+                PlayerSlot slot = m_Slots[id];
+                if (slot.ClientId != clientId || slot.Absent == absent) continue;
+
+                m_Slots[id] = slot.WithAbsent(absent);
+                AnnouncePlayerEvent(absent ? $"{slot.Name} lost connection" : $"{slot.Name} is back");
+            }
+        }
     }
 }

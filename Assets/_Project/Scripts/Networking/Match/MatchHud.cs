@@ -21,6 +21,9 @@ namespace MiniBrawl.Networking.Match
         public Button ReadyButton;
         public Text ReadyLabel;
 
+        [Tooltip("Always available: leaving a session should never need force-quitting the app.")]
+        public Button LeaveButton;
+
         const int k_FeedLength = 4;
         const float k_FeedEntrySeconds = 6f;
 
@@ -39,7 +42,9 @@ namespace MiniBrawl.Networking.Match
                     return;
                 }
                 m_Director.KillReported += OnKillReported;
+                m_Director.PlayerEventReported += OnPlayerEvent;
                 if (ReadyButton != null) ReadyButton.onClick.AddListener(OnReadyClicked);
+                if (LeaveButton != null) LeaveButton.onClick.AddListener(OnLeaveClicked);
             }
 
             DrawBanner();
@@ -65,6 +70,16 @@ namespace MiniBrawl.Networking.Match
                 image.color = ready ? new Color(0.55f, 0.95f, 0.45f, 0.35f) : new Color(1f, 1f, 1f, 0.15f);
         }
 
+        /// <summary>
+        /// Stops the session and returns to the menu. Hosting stops the server too, which tells
+        /// every client the host has gone rather than leaving them guessing.
+        /// </summary>
+        void OnLeaveClicked()
+        {
+            Session.NetworkBootstrap bootstrap = FindFirstObjectByType<Session.NetworkBootstrap>();
+            bootstrap?.Stop();
+        }
+
         void OnReadyClicked()
         {
             if (m_Director == null) return;
@@ -75,7 +90,15 @@ namespace MiniBrawl.Networking.Match
 
         void OnDestroy()
         {
-            if (m_Director != null) m_Director.KillReported -= OnKillReported;
+            if (m_Director == null) return;
+            m_Director.KillReported -= OnKillReported;
+            m_Director.PlayerEventReported -= OnPlayerEvent;
+        }
+
+        void OnPlayerEvent(string message)
+        {
+            m_Feed.Add((message, Time.unscaledTime));
+            if (m_Feed.Count > k_FeedLength) m_Feed.RemoveAt(0);
         }
 
         void OnKillReported(string killer, string victim)
@@ -145,7 +168,10 @@ namespace MiniBrawl.Networking.Match
             var text = new StringBuilder();
             foreach (PlayerSlot slot in m_Director.Standings())
             {
-                string name = slot.Connected ? slot.Name : $"{slot.Name} (away)";
+                // Three states worth distinguishing: playing, silent but expected back, and gone.
+                string name = slot.Name;
+                if (!slot.Connected) name = $"{slot.Name} (left)";
+                else if (slot.Absent) name = $"{slot.Name} (no signal)";
 
                 // In the lobby the useful column is who is ready, not who is winning.
                 if (m_Director.Phase == MatchPhase.Lobby)

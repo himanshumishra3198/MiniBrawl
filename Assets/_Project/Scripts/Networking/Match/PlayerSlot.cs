@@ -21,6 +21,13 @@ namespace MiniBrawl.Networking.Match
         /// <summary>Ready to start. Cleared between matches so nobody is dragged into a rematch.</summary>
         public bool Ready;
 
+        /// <summary>
+        /// Input has stopped arriving, which is known within a tick. The connection is not formally
+        /// dropped until the transport gives up seconds later, so this is what the roster shows
+        /// first — otherwise a player vanishes with no explanation for ten seconds.
+        /// </summary>
+        public bool Absent;
+
         /// <summary>Current connection, or -1 while the seat is held for someone who dropped.</summary>
         public int ClientId;
 
@@ -45,6 +52,13 @@ namespace MiniBrawl.Networking.Match
             PlayerSlot copy = this;
             copy.Kills = kills;
             copy.Deaths = deaths;
+            return copy;
+        }
+
+        public PlayerSlot WithAbsent(bool absent)
+        {
+            PlayerSlot copy = this;
+            copy.Absent = absent;
             return copy;
         }
 

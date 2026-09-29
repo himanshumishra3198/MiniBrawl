@@ -257,8 +257,19 @@ namespace MiniBrawl.Networking.Replication
              * cost you deaths you had no chance to avoid. */
             if (IsServerStarted && state.ContainsTicked())
             {
-                if (!state.IsFuture()) m_LastInputTick = TimeManager.Tick;
-                m_Absent = TimeManager.Tick - m_LastInputTick > k_AbsentAfterTicks;
+                /* Created is the flag that means real data exists for this tick. IsFuture() is
+                 * exactly Replayed, a replay concept — testing it here marked input fresh on every
+                 * live tick, so absence never triggered and the feature silently did nothing. */
+                if (state.ContainsCreated()) m_LastInputTick = TimeManager.Tick;
+
+                bool absent = TimeManager.Tick - m_LastInputTick > k_AbsentAfterTicks;
+                if (absent != m_Absent)
+                {
+                    m_Absent = absent;
+                    // Tell the roster, so the scoreboard and feed react now rather than in ten
+                    // seconds when the transport finally admits the connection is gone.
+                    Match.MatchDirector.Instance?.SetAbsent(OwnerId, absent);
+                }
             }
 
             m_LastInput = md.ToInput();

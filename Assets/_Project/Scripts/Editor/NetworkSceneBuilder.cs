@@ -202,7 +202,17 @@ public static class NetworkSceneBuilder
         Text readyLabel = PrototypeSceneBuilder.Label("Label", readyImage.transform, 40, TextAnchor.MiddleCenter);
         PrototypeSceneBuilder.Stretch(readyLabel.rectTransform);
 
+        // Leave sits top-left, away from both thumbs so it cannot be hit mid-fight.
+        Image leaveImage = PrototypeSceneBuilder.MakeImage("LeaveButton", canvas, square,
+            new Color(1f, 0.45f, 0.4f, 0.25f), new Vector2(0f, 1f), new Vector2(150f, -170f),
+            new Vector2(220f, 80f));
+        var leaveButton = leaveImage.gameObject.AddComponent<Button>();
+        Text leaveLabel = PrototypeSceneBuilder.Label("Label", leaveImage.transform, 32, TextAnchor.MiddleCenter);
+        PrototypeSceneBuilder.Stretch(leaveLabel.rectTransform);
+        leaveLabel.text = "LEAVE";
+
         var matchHud = canvasGo.AddComponent<MatchHud>();
+        matchHud.LeaveButton = leaveButton;
         matchHud.Banner = banner;
         matchHud.Scoreboard = scoreboard;
         matchHud.KillFeed = killFeed;
