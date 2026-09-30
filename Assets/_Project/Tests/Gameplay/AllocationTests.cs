@@ -24,6 +24,41 @@ namespace MiniBrawl.Gameplay.Tests
             { hit = 0f; return false; }
         }
 
+        /// <summary>
+        /// Asserts the delegate allocates nothing, tolerating the editor allocating underneath it.
+        ///
+        /// These run inside a live editor, and its own main-thread work lands in the same
+        /// measurement window. That made the whole fixture flicker — roughly one run in three, and
+        /// the failure *moved between tests* as timing shifted, which is what ruled out a real
+        /// allocation and ruled in interference. A first attempt at fixing it by discarding the
+        /// cold first measurement only moved the failure to a different test.
+        ///
+        /// Requiring one clean attempt out of several separates the two cases without weakening
+        /// the claim: code that allocates does so on every attempt and still fails all of them,
+        /// while a stray editor allocation has to land in every window to hide it.
+        /// </summary>
+        static void AssertAllocatesNothing(TestDelegate probe, int attempts = 5)
+        {
+            // Never measure a cold delegate: Mono JITs a body on first execution and JIT allocates.
+            probe();
+
+            for (int i = 0; i < attempts - 1; i++)
+            {
+                try
+                {
+                    Assert.That(probe, Is.Not.AllocatingGCMemory());
+                    return;
+                }
+                catch (AssertionException)
+                {
+                    // Another attempt; a genuine allocation will fail the final one too.
+                }
+            }
+
+            // Last attempt is unguarded, so a real regression reports normally.
+            Assert.That(probe, Is.Not.AllocatingGCMemory());
+        }
+
         [Test]
         public void PlayerMotor_Simulate_DoesNotAllocate()
         {
@@ -32,14 +67,11 @@ namespace MiniBrawl.Gameplay.Tests
             var config = MotorConfig.Default;
             var world = new NoWorld();
 
-            // Warm up first: the constraint measures the delegate, and first-call JIT would count.
-            state = PlayerMotor.Simulate(state, input, config, world, 1f / 30f);
-
-            Assert.That(() =>
+            AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
                     state = PlayerMotor.Simulate(state, input, config, world, 1f / 30f);
-            }, Is.Not.AllocatingGCMemory());
+            });
         }
 
         [Test]
@@ -47,42 +79,38 @@ namespace MiniBrawl.Gameplay.Tests
         {
             var weapon = new WeaponState();
             var config = WeaponConfig.Default;
-            WeaponSim.Step(ref weapon, config, true, 1f / 30f);
 
-            Assert.That(() =>
+            AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
                     WeaponSim.Step(ref weapon, config, true, 1f / 30f);
-            }, Is.Not.AllocatingGCMemory());
+            });
         }
 
         [Test]
         public void MatchRules_Advance_DoesNotAllocate()
         {
             MatchSettings settings = MatchSettings.Default;
-            MatchRules.Advance(MatchPhase.Playing, 1f, 2, 2, 0, settings);
 
-            Assert.That(() =>
+            AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
                     MatchRules.Advance(MatchPhase.Playing, i, 2, 2, i % 20, settings);
-            }, Is.Not.AllocatingGCMemory());
+            });
         }
 
         [Test]
         public void AimEncoding_DoesNotAllocate()
         {
             // Runs for every input tick on every client, and again on the server.
-            PlayerInput.EncodeAim(Vector2.right);
-
-            Assert.That(() =>
+            AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
                 {
                     ushort angle = PlayerInput.EncodeAim(new Vector2(i, 100 - i));
                     Vector2 back = new PlayerInput { AimAngle = angle }.AimDirection;
                 }
-            }, Is.Not.AllocatingGCMemory());
+            });
         }
 
         [Test]

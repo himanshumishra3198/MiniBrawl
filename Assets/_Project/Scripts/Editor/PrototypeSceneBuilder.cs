@@ -73,6 +73,11 @@ public static class PrototypeSceneBuilder
         go.AddComponent<CameraFitter>();
         go.AddComponent<ScreenShake>();
 
+        /* Without this the game is silent, however correct everything downstream is. Unity's
+         * GameObject menu adds one alongside a camera; constructing the camera from script does
+         * not, and nothing warns you — the mixer simply has nobody to play to. */
+        go.AddComponent<AudioListener>();
+
         // The 2D renderer's default sprite material is lit, so without a global light the scene
         // renders black on device.
         var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
