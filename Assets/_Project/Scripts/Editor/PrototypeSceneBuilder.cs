@@ -1,4 +1,5 @@
 using System.IO;
+using MiniBrawl.Gameplay.Audio;
 using MiniBrawl.Gameplay.Combat;
 using MiniBrawl.Gameplay.Map;
 using MiniBrawl.Gameplay.Player;
@@ -83,8 +84,61 @@ public static class PrototypeSceneBuilder
     internal static void BuildEffects(Sprite square)
     {
         var go = new GameObject("Effects");
+
         var sparks = go.AddComponent<HitSparks>();
-        sparks.Sprite = square;
+        sparks.Sprite = GameAssets.Particle("spark");
+        sparks.Size = 0.16f;
+
+        var sfx = go.AddComponent<Sfx>();
+        sfx.Banks = GameAssets.Banks();
+    }
+
+    /// <summary>
+    /// The sprite rig: a body that stands on the floor, a weapon that turns with the aim stick, a
+    /// thruster flame and a muzzle flash.
+    ///
+    /// All four hang off the player root as children, and the root is left at unit scale. The old
+    /// single-square player squashed its transform to the collision box, which would have squashed
+    /// every one of these along with it.
+    /// </summary>
+    internal static PlayerVisual BuildPlayerVisual(GameObject root)
+    {
+        var visual = root.AddComponent<PlayerVisual>();
+        visual.Skins = GameAssets.Skins();
+
+        float feet = -PlayerMotor.Size.y * 0.5f;
+
+        visual.Body = MakeRenderer("Body", root.transform, GameAssets.Character(0, "stand"), 10);
+        visual.Body.transform.localPosition = new Vector3(0f, feet, 0f);
+
+        visual.Gun = MakeRenderer("Gun", root.transform, GameAssets.Weapon(), 11);
+
+        // Pivoted at its base and turned to hang downwards, so lengthening the flame grows it away
+        // from the feet instead of up through the body.
+        visual.Jet = MakeRenderer("Jet", root.transform, GameAssets.Emitted("flame"), 9);
+        visual.Jet.transform.localPosition = new Vector3(0f, feet + 0.05f, 0f);
+        visual.Jet.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
+
+        /* A child of the gun, so it follows the barrel around without anyone having to recompute
+         * where the barrel is. Turned a quarter circle because the sprite points up and the barrel
+         * points along +x, and placed at the muzzle: 0.42 units past the grip pivot. */
+        visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
+        visual.Muzzle.transform.localPosition = new Vector3(0.42f, 0f, 0f);
+        visual.Muzzle.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
+        visual.Muzzle.enabled = false;
+
+        return visual;
+    }
+
+    static SpriteRenderer MakeRenderer(string name, Transform parent, Sprite sprite, int order)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = sprite;
+        sr.sortingOrder = order;
+        return sr;
     }
 
     internal static void BuildLevel(Sprite square, int layer)
@@ -107,13 +161,21 @@ public static class PrototypeSceneBuilder
         var go = new GameObject(name) { layer = layer };
         go.transform.SetParent(parent, false);
         go.transform.position = pos;
-        go.transform.localScale = new Vector3(size.x, size.y, 1f);
 
+        /* Unit scale with the size on the renderer, not a squashed transform. Scaling a transform
+         * stretches one tile over the whole block; SpriteDrawMode.Tiled repeats it instead, which
+         * is what makes a 26-unit floor look like a floor rather than one enormous brick. */
         var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = square;
+        sr.sprite = GameAssets.Tile();
+        sr.drawMode = SpriteDrawMode.Tiled;
+        sr.tileMode = SpriteTileMode.Continuous;
+        sr.size = size;
+
+        // Kenney's tiles are pale. Tinted to the colour the level already was, so the arena gains
+        // surface detail without the players losing contrast against it.
         sr.color = k_LevelColor;
 
-        go.AddComponent<BoxCollider2D>().size = Vector2.one;   // 1x1 sprite, so scale sets world size
+        go.AddComponent<BoxCollider2D>().size = size;
     }
 
     internal static void BuildTargets(Sprite square, int hittableLayer)
@@ -145,12 +207,11 @@ public static class PrototypeSceneBuilder
     {
         var go = new GameObject("Player");
         go.transform.position = new Vector3(0f, -4f, 0f);
-        go.transform.localScale = new Vector3(PlayerMotor.Size.x, PlayerMotor.Size.y, 1f);
 
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = square;
-        sr.color = k_PlayerColor;
-        sr.sortingOrder = 10;
+        // Left at unit scale, unlike the old square: the sprite rig is made of children, and a
+        // squashed root would squash the character, the weapon and the flame along with it.
+        BuildPlayerVisual(go);
+        go.AddComponent<PlayerSfx>().JetpackLoop = GameAssets.JetpackLoop();
 
         // No Collider2D on the player: the motor sweeps its own box, so a collider would only make
         // the cast hit itself.
@@ -224,9 +285,12 @@ public static class PrototypeSceneBuilder
     internal static void Stick(string name, string controlPath, Transform canvas, Sprite square,
                       Vector2 anchor, Vector2 anchoredPos)
     {
-        var stickBase = MakeImage(name, canvas, square, new Color(1f, 1f, 1f, 0.10f),
+        /* Outlined art rather than flat translucent squares. Both thumbs sit over live gameplay,
+         * and an outline stays findable against a bright wall and a dark floor alike — a plain
+         * alpha fill disappears against whichever of the two it happens to match. */
+        var stickBase = MakeImage(name, canvas, GameAssets.Ui("stick_pad"), new Color(1f, 1f, 1f, 0.32f),
             anchor, anchoredPos, new Vector2(320f, 320f));
-        var handle = MakeImage("Handle", stickBase.transform, square, new Color(1f, 1f, 1f, 0.35f),
+        var handle = MakeImage("Handle", stickBase.transform, GameAssets.Ui("stick_nub"), new Color(1f, 1f, 1f, 0.55f),
             new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(150f, 150f));
 
         var stick = handle.gameObject.AddComponent<OnScreenStick>();

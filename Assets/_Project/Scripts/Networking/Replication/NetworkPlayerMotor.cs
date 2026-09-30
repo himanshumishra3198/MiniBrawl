@@ -3,6 +3,7 @@ using FishNet.Object.Prediction;
 using FishNet.Transporting;
 using FishNet.Utility.Template;
 using MiniBrawl.Gameplay.Combat;
+using MiniBrawl.Gameplay.Audio;
 using MiniBrawl.Gameplay.Player;
 using MiniBrawl.Gameplay.VFX;
 using MiniBrawl.Gameplay.Weapons;
@@ -20,7 +21,7 @@ namespace MiniBrawl.Networking.Replication
     /// Movement and shooting live in one behaviour on purpose: both are predicted, and a shot's
     /// cooldown has to roll back in lockstep with the position it was fired from.
     /// </summary>
-    public sealed class NetworkPlayerMotor : TickNetworkBehaviour
+    public sealed class NetworkPlayerMotor : TickNetworkBehaviour, IPlayerView
     {
         /// <summary>One tick of intent on the wire — 8 bytes plus FishNet's tick.</summary>
         public struct MoveData : IReplicateData
@@ -125,7 +126,8 @@ namespace MiniBrawl.Networking.Replication
         IMotorCollision m_World;
         IHitscanWorld m_Hitscan;
         Collider2D m_Collider;
-        SpriteRenderer m_Renderer;
+        PlayerVisual m_Visual;
+        PlayerSfx m_Sfx;
         LineRenderer m_AimLine;
         Color m_BaseColor;
 
@@ -195,8 +197,8 @@ namespace MiniBrawl.Networking.Replication
             m_World = new Physics2DCollision(LevelMask);
             m_Hitscan = new Physics2DHitscan(HitMask);
             m_Collider = GetComponent<Collider2D>();
-            m_Renderer = GetComponent<SpriteRenderer>();
-            if (m_Renderer != null) m_BaseColor = m_Renderer.color;
+            m_Visual = GetComponent<PlayerVisual>();
+            m_Sfx = GetComponent<PlayerSfx>();
 
             m_SpawnPoint = transform.position;
             m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
@@ -352,6 +354,17 @@ namespace MiniBrawl.Networking.Replication
                 // Being shot shakes your own view harder than shooting does; watching someone else
                 // get shot should not shake yours at all.
                 if (IsOwner) ScreenShake.Instance?.Shake(health == 0 ? 0.3f : 0.12f);
+
+                /* Quieter for other players than for yourself. Everyone runs this for all six
+                 * players, so at equal volume a busy match is a wall of impacts and you cannot
+                 * hear that you are the one being shot. */
+                Sfx.PlayGlobal(health == 0 ? SfxId.Death : SfxId.HitBody, IsOwner ? 1f : 0.4f);
+            }
+            else if (health > m_LastSeenHealth && m_LastSeenHealth == 0)
+            {
+                // Coming back is the same trick in reverse: health is reconciled to everyone, so
+                // every machine sees the respawn without anything extra being sent.
+                Sfx.PlayGlobal(SfxId.Respawn, IsOwner ? 0.8f : 0.22f);
             }
 
             m_LastSeenHealth = health;
@@ -374,8 +387,13 @@ namespace MiniBrawl.Networking.Replication
                     sparks.Burst(hit.Point, -direction, new Color(1f, 0.75f, 0.35f), count: 5);
             }
 
+            if (m_Visual != null) m_Visual.FlashMuzzle();
+
             // Only the shooter feels the recoil, and only lightly — this fires five times a second.
             if (IsOwner) ScreenShake.Instance?.Shake(0.045f);
+
+            Sfx.PlayGlobal(SfxId.Shoot, IsOwner ? 0.75f : 0.28f);
+            if (hit.Hit) Sfx.PlayGlobal(SfxId.HitWall, IsOwner ? 0.45f : 0.18f);
         }
 
         /// <summary>Server-only. Health is part of the reconciled state, so clients learn of it there.</summary>
@@ -426,17 +444,22 @@ namespace MiniBrawl.Networking.Replication
              * needs no extra synchronisation — every machine reaches the same conclusion. */
             bool dead = m_State.IsDead || m_Absent;
 
-            if (m_Renderer != null)
-            {
-                // The roster owns the colour, so every machine paints each player the same.
-                Match.MatchDirector director = Match.MatchDirector.Instance;
-                if (director != null) m_BaseColor = director.ColorFor(OwnerId);
+            /* The roster owns seat identity, so every machine paints each player the same. It is
+             * pushed into the visuals rather than drawn here: PlayerVisual lives in Gameplay and
+             * has no way to reach MatchDirector, which is the separation that keeps the simulation
+             * layer free of FishNet. */
+            Match.MatchDirector director = Match.MatchDirector.Instance;
+            if (director != null) m_BaseColor = director.ColorFor(OwnerId);
 
-                m_Renderer.enabled = !dead;
-                m_Renderer.color = m_DamageFlash > 0f
-                    ? Color.white   // a moment of white reads as "that hit" better than a tint shift
-                    : Color.Lerp(new Color(1f, 0.3f, 0.3f), m_BaseColor, m_State.Health / 100f);
+            if (m_Visual != null)
+            {
+                if (director != null) m_Visual.Seat = director.SeatFor(OwnerId);
+                m_Visual.SeatColor = m_BaseColor;
+                m_Visual.Hidden = dead;
+                m_Visual.Flashing = m_DamageFlash > 0f;
             }
+
+            if (m_Sfx != null) m_Sfx.IsLocal = IsOwner;
             if (m_Collider != null) m_Collider.enabled = !dead;
 
             if (m_AimLine == null) return;
@@ -469,7 +492,11 @@ namespace MiniBrawl.Networking.Replication
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             line.receiveShadows = false;
             line.sortingOrder = 20;
-            line.sharedMaterial = m_Renderer != null ? m_Renderer.sharedMaterial : null;
+            // Borrowed from the body sprite: an unlit material that is guaranteed to be in the
+            // build, without an editor-only lookup.
+            line.sharedMaterial = m_Visual != null && m_Visual.Body != null
+                ? m_Visual.Body.sharedMaterial
+                : null;
             return line;
         }
     }

@@ -10,7 +10,7 @@ namespace MiniBrawl.Gameplay.Player
     /// PlayerMotor.Simulate — that is the point of keeping the motor free of MonoBehaviour state.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerDriver : MonoBehaviour
+    public sealed class PlayerDriver : MonoBehaviour, IPlayerView
     {
         [Tooltip("Layers the motor collides with. Set to 'Level' by the scene builder.")]
         public LayerMask LevelMask = ~0;

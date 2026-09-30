@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using MiniBrawl.Gameplay.Rules;
 using MiniBrawl.Networking.Identity;
+using MiniBrawl.Gameplay.Audio;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,6 +39,13 @@ namespace MiniBrawl.Networking.Match
         MatchDirector m_Director;
         float m_NextRedraw;
 
+        /// <summary>
+        /// The phase we last played a sting for. The phase is derived from replicated state, so
+        /// every machine crosses each boundary on its own and needs no message to know it happened —
+        /// but Update runs many times per phase, so the transition has to be edge-triggered.
+        /// </summary>
+        MatchPhase m_LastPhase = MatchPhase.Lobby;
+
         void Update()
         {
             if (m_Director == null)
@@ -57,6 +65,7 @@ namespace MiniBrawl.Networking.Match
 
             // The ready button is cheap and wants to feel responsive; the text does not.
             DrawReadyButton();
+            AnnouncePhase();
 
             if (Time.unscaledTime < m_NextRedraw) return;
             m_NextRedraw = Time.unscaledTime + k_RedrawInterval;
@@ -64,6 +73,16 @@ namespace MiniBrawl.Networking.Match
             DrawBanner();
             DrawScoreboard();
             DrawKillFeed();
+        }
+
+        void AnnouncePhase()
+        {
+            MatchPhase phase = m_Director.Phase;
+            if (phase == m_LastPhase) return;
+            m_LastPhase = phase;
+
+            if (phase == MatchPhase.Playing) Sfx.PlayGlobal(SfxId.MatchStart);
+            else if (phase == MatchPhase.MatchEnd) Sfx.PlayGlobal(SfxId.MatchEnd);
         }
 
         void DrawReadyButton()
@@ -89,6 +108,8 @@ namespace MiniBrawl.Networking.Match
         /// </summary>
         void OnLeaveClicked()
         {
+            Sfx.PlayGlobal(SfxId.UiClick);
+
             Session.NetworkBootstrap bootstrap = FindFirstObjectByType<Session.NetworkBootstrap>();
             bootstrap?.Stop();
         }
@@ -98,6 +119,7 @@ namespace MiniBrawl.Networking.Match
             if (m_Director == null) return;
 
             bool ready = m_Director.Slots.TryGetValue(PlayerIdentity.Id, out PlayerSlot mine) && mine.Ready;
+            Sfx.PlayGlobal(ready ? SfxId.UiClick : SfxId.UiConfirm);
             m_Director.SetReady(PlayerIdentity.Id, !ready);
         }
 
@@ -118,6 +140,13 @@ namespace MiniBrawl.Networking.Match
         {
             string line = killer == victim ? $"{victim} died" : $"{killer} killed {victim}";
             m_Feed.Add((line, Time.unscaledTime));
+
+            /* Only for your own kills. The death sound already plays for everyone who can hear it;
+             * this is the confirmation that it was you, and it stops meaning that if it fires for
+             * all six players. */
+            bool mine = m_Director.Slots.TryGetValue(PlayerIdentity.Id, out PlayerSlot slot)
+                        && slot.Name == killer && killer != victim;
+            if (mine) Sfx.PlayGlobal(SfxId.Kill);
 
             if (m_Feed.Count > k_FeedLength) m_Feed.RemoveAt(0);
         }

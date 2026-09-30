@@ -18,6 +18,23 @@ namespace MiniBrawl.Networking.Session
         NetworkManager m_Manager;
         uint m_LastLogged;
 
+        /* Frame timing, sampled every frame and reported once a second. The Phase 5 bar is 60 fps
+         * with no spike past 33 ms, and a spike is exactly what an average hides — so the worst
+         * frame in each window is reported alongside the mean. */
+        int m_Frames;
+        float m_FrameSeconds;
+        float m_WorstFrameMs;
+
+        void Update()
+        {
+            float dt = Time.unscaledDeltaTime;
+            m_Frames++;
+            m_FrameSeconds += dt;
+
+            float ms = dt * 1000f;
+            if (ms > m_WorstFrameMs) m_WorstFrameMs = ms;
+        }
+
         void Start()
         {
             m_Manager = InstanceFinder.NetworkManager;
@@ -46,8 +63,15 @@ namespace MiniBrawl.Networking.Session
             bool client = m_Manager.IsClientStarted;
             string role = server && client ? "host" : server ? "server" : client ? "client" : "offline";
 
+            float fps = m_FrameSeconds > 0f ? m_Frames / m_FrameSeconds : 0f;
+            float worst = m_WorstFrameMs;
+            m_Frames = 0;
+            m_FrameSeconds = 0f;
+            m_WorstFrameMs = 0f;
+
             var line = new StringBuilder();
-            line.Append($"[telemetry] role={role} tick={tick} rtt={m_Manager.TimeManager.RoundTripTime} players={motors.Length}");
+            line.Append($"[telemetry] role={role} tick={tick} rtt={m_Manager.TimeManager.RoundTripTime} " +
+                        $"fps={fps:0} worstFrame={worst:0.0}ms players={motors.Length}");
 
             // Roster scores, which are the match's truth — the per-player "hits" below only counts
             // shots landed and says nothing about who is winning.

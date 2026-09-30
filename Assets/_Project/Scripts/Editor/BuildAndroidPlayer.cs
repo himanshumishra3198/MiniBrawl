@@ -59,7 +59,12 @@ public static class BuildAndroidPlayer
         BuildSummary summary = BuildPipeline.BuildPlayer(options).summary;
         bool ok = summary.result == BuildResult.Succeeded;
 
-        Debug.Log($"[BuildAndroidPlayer] {summary.result} · {summary.totalSize / (1024 * 1024)} MB · " +
+        /* Measured off the file, not from summary.totalSize — that counts everything the build
+         * produced, including the IL2CPP intermediates, and reported 1370 MB for an 88 MB APK.
+         * The number that matters is the one the phone downloads. */
+        long bytes = System.IO.File.Exists(apk) ? new System.IO.FileInfo(apk).Length : 0;
+
+        Debug.Log($"[BuildAndroidPlayer] {summary.result} · {bytes / (1024 * 1024)} MB · " +
                   $"{summary.totalTime.TotalSeconds:0}s · {apk}");
 
         if (!ok && Application.isBatchMode) EditorApplication.Exit(1);

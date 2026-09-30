@@ -5,6 +5,7 @@ using FishNet.Managing.Object;
 using FishNet.Object;
 using FishNet.Transporting.Tugboat;
 using MiniBrawl.Config;
+using MiniBrawl.Gameplay.Audio;
 using MiniBrawl.Gameplay.Player;
 using MiniBrawl.Networking.Discovery;
 using MiniBrawl.Networking.Match;
@@ -64,14 +65,14 @@ public static class NetworkSceneBuilder
         // On the Hittable layer so shots can find players, and off the Level layer so the motor's
         // own sweep never collides with the player it is moving.
         var go = new GameObject("NetworkPlayer") { layer = hittableLayer };
-        go.transform.localScale = new Vector3(PlayerMotor.Size.x, PlayerMotor.Size.y, 1f);
 
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = square;
-        sr.color = PrototypeSceneBuilder.k_PlayerColor;
-        sr.sortingOrder = 10;
+        PrototypeSceneBuilder.BuildPlayerVisual(go);
+        go.AddComponent<PlayerSfx>().JetpackLoop = GameAssets.JetpackLoop();
 
-        go.AddComponent<BoxCollider2D>().size = Vector2.one;
+        /* The root stays at unit scale and the collider carries the size, where before the root
+         * was squashed to PlayerMotor.Size around a 1x1 collider. The world-space box is identical,
+         * so hitscan is unaffected — but the sprite rig hanging off this root is not squashed. */
+        go.AddComponent<BoxCollider2D>().size = PlayerMotor.Size;
 
         var nob = go.AddComponent<NetworkObject>();
         var motor = go.AddComponent<NetworkPlayerMotor>();
@@ -198,8 +199,8 @@ public static class NetworkSceneBuilder
         Anchor(killFeed.rectTransform, new Vector2(1f, 1f), new Vector2(-44f, -420f), new Vector2(760f, 200f));
 
         // Ready button sits centre-bottom, clear of both thumbsticks.
-        Image readyImage = PrototypeSceneBuilder.MakeImage("ReadyButton", canvas, square,
-            new Color(1f, 1f, 1f, 0.15f), new Vector2(0.5f, 0f), new Vector2(0f, 190f),
+        Image readyImage = PrototypeSceneBuilder.MakeImage("ReadyButton", canvas, GameAssets.Ui("button_wide"),
+            new Color(1f, 1f, 1f, 0.55f), new Vector2(0.5f, 0f), new Vector2(0f, 190f),
             new Vector2(640f, 130f));
         var readyButton = readyImage.gameObject.AddComponent<Button>();
         Text readyLabel = PrototypeSceneBuilder.Label("Label", readyImage.transform, 40, TextAnchor.MiddleCenter);
@@ -208,8 +209,8 @@ public static class NetworkSceneBuilder
         /* Top-right corner, above the scoreboard. It was top-left first, which put it underneath
          * four lines of debug readout at a quarter opacity — present in the scene, invisible on a
          * phone. Solid enough to read as a button, and far from both thumbsticks. */
-        Image leaveImage = PrototypeSceneBuilder.MakeImage("LeaveButton", canvas, square,
-            new Color(1f, 0.35f, 0.3f, 0.55f), new Vector2(1f, 1f), new Vector2(-150f, -70f),
+        Image leaveImage = PrototypeSceneBuilder.MakeImage("LeaveButton", canvas, GameAssets.Ui("button_wide"),
+            new Color(1f, 0.45f, 0.4f, 0.8f), new Vector2(1f, 1f), new Vector2(-150f, -70f),
             new Vector2(240f, 90f));
         var leaveButton = leaveImage.gameObject.AddComponent<Button>();
         Text leaveLabel = PrototypeSceneBuilder.Label("Label", leaveImage.transform, 34, TextAnchor.MiddleCenter);

@@ -186,6 +186,20 @@ namespace MiniBrawl.Networking.Match
         }
 
         /// <summary>The colour this connection was given, for tinting their square.</summary>
+        /// <summary>
+        /// The seat index behind <see cref="ColorFor"/>. The character skins are keyed by the same
+        /// index, so a player's sprite, scoreboard row and hit sparks agree by construction rather
+        /// than by two tables being kept in step by hand.
+        /// </summary>
+        public int SeatFor(int clientId)
+        {
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots)
+                if (pair.Value.ClientId == clientId)
+                    return pair.Value.ColorIndex;
+
+            return 0;
+        }
+
         public Color ColorFor(int clientId)
         {
             foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots)
