@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: f8cd3b154fa664a4aa5c986e3fd855bd
+guid: 0164760adbef94cf1b1c9b587d358f47
 AudioImporter:
   externalObjects: {}
   serializedVersion: 8
@@ -8,14 +8,14 @@ AudioImporter:
     loadType: 0
     sampleRateSetting: 0
     sampleRateOverride: 44100
-    compressionFormat: 1
+    compressionFormat: 2
     quality: 1
     conversionMode: 0
-    preloadAudioData: 0
+    preloadAudioData: 1
   platformSettingOverrides: {}
-  forceToMono: 0
+  forceToMono: 1
   normalize: 1
-  loadInBackground: 0
+  loadInBackground: 1
   ambisonic: 0
   3D: 1
   userData: 

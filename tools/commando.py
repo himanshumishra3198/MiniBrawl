@@ -154,14 +154,14 @@ def head(p, hx, hy, tones):
 
 def leg(p, hip, knee, foot, tone, back=False):
     f = 0.72 if back else 1.0
-    p.limb(hip, knee, 13, mul(tone, f))
-    p.limb(knee, foot, 11, mul(tone, f))
+    p.limb(hip, knee, 16, mul(tone, f))
+    p.limb(knee, foot, 13.5, mul(tone, f))
 
 
 def boot(p, foot, back=False):
     bx, by = foot
-    p.rr((bx - 6, by - 4, bx + 10, by + 5), 2.5, mul(BOOT, 0.8 if back else 1.0))
-    p.rr((bx - 6, by + 2, bx + 10, by + 5), 1.5, mul(BOOT_DARK, 0.8 if back else 1.0))
+    p.rr((bx - 7, by - 4, bx + 11, by + 5), 2.5, mul(BOOT, 0.8 if back else 1.0))
+    p.rr((bx - 7, by + 2, bx + 11, by + 5), 1.5, mul(BOOT_DARK, 0.8 if back else 1.0))
 
 
 def walk_leg(phase, hip_x, knee_y, foot_y, reach=14.0, lift=9.0):
@@ -214,9 +214,9 @@ def body(seat_rgb01, pose, seed):
 
     leg(pc, (cx - 3, top), back[0], back[1], base, back=True)
     leg(pc, (cx + 3, top), front[0], front[1], base)
-    pc.limb((cx - 1 + lean, ty + 11), (cx + 7 + lean, ty + 32), 9.5, mul(base, 0.70))  # support arm
-    pc.rr((cx - 13, top - 13, cx + 13, top + 5), 5, mul(base, 0.9))                    # hips
-    pc.rr((cx - 13 + lean, ty, cx + 13 + lean, top - 5), 7, base)                      # torso
+    pc.limb((cx - 1 + lean, ty + 11), (cx + 8 + lean, ty + 32), 11.5, mul(base, 0.70)) # support arm
+    pc.rr((cx - 16, top - 13, cx + 16, top + 5), 5.5, mul(base, 0.9))                  # hips
+    pc.rr((cx - 16 + lean, ty, cx + 16 + lean, top - 5), 8, base)                      # torso
 
     # Clip the pattern to the cloth: blotches over the rig or the face would be
     # paint, not camouflage.
@@ -232,16 +232,16 @@ def body(seat_rgb01, pose, seed):
     boot(p, front[1])
 
     # Chest rig and belt kit, over the camouflage and deliberately not patterned.
-    p.rr((cx - 10 + lean, ty + 7, cx + 11 + lean, top - 20), 3.5, RIG)
-    p.rr((cx - 7 + lean, ty + 17, cx - 1 + lean, ty + 29), 1.5, RIG_DARK)
-    p.rr((cx + 1 + lean, ty + 17, cx + 7 + lean, ty + 29), 1.5, RIG_DARK)
-    p.rr((cx - 10 + lean, ty + 11, cx + 11 + lean, ty + 14), 1, RIG_LIT)
-    p.rr((cx - 13 + lean, ty + 2, cx + 13 + lean, ty + 7), 2, STRAP)     # shoulder straps
-    p.rr((cx - 13, top - 12, cx + 13, top - 6), 2, STRAP)                # belt
-    p.rr((cx + 4, top + 2, cx + 12, top + 17), 2.5, RIG_DARK)            # dump pouch
-    p.rr((cx - 12, top - 4, cx - 6, top + 6), 2, RIG_DARK)               # rear pouch
+    p.rr((cx - 13 + lean, ty + 7, cx + 14 + lean, top - 20), 4, RIG)
+    p.rr((cx - 9 + lean, ty + 17, cx - 2 + lean, ty + 29), 1.5, RIG_DARK)
+    p.rr((cx + 2 + lean, ty + 17, cx + 9 + lean, ty + 29), 1.5, RIG_DARK)
+    p.rr((cx - 13 + lean, ty + 11, cx + 14 + lean, ty + 14), 1, RIG_LIT)
+    p.rr((cx - 16 + lean, ty + 2, cx + 16 + lean, ty + 7), 2, STRAP)     # shoulder straps
+    p.rr((cx - 16, top - 12, cx + 16, top - 6), 2, STRAP)                # belt
+    p.rr((cx + 5, top + 2, cx + 15, top + 17), 2.5, RIG_DARK)            # dump pouch
+    p.rr((cx - 15, top - 4, cx - 8, top + 6), 2, RIG_DARK)               # rear pouch
 
-    p.rr((cx + 1 + lean, ty - 9, cx + 7 + lean, ty + 3), 3, SKIN_DARK)   # neck
+    p.rr((cx + 1 + lean, ty - 9, cx + 8 + lean, ty + 3), 3.5, SKIN_DARK) # neck
     head(p, cx + 1 + lean, ty - 24, tones)
 
     return img.resize((W, H), Image.LANCZOS)
@@ -261,10 +261,10 @@ def weapon_arm(seat_rgb01, seed):
     sx, sy = GRIP
     st = sx + 4
 
-    ps.limb((sx, sy), (sx + 19, sy + 15), 11, mul(base, 0.95))
-    ps.limb((sx + 19, sy + 15), (st + 33, sy + 11), 9.5, base)
-    ps.limb((sx + 5, sy + 8), (sx + 32, sy + 20), 8, mul(base, 1.12))
-    ps.limb((sx + 32, sy + 20), (st + 66, sy + 7), 8, mul(base, 1.12))
+    ps.limb((sx, sy), (sx + 19, sy + 15), 13, mul(base, 0.95))
+    ps.limb((sx + 19, sy + 15), (st + 33, sy + 11), 11.5, base)
+    ps.limb((sx + 5, sy + 8), (sx + 32, sy + 20), 9.5, mul(base, 1.12))
+    ps.limb((sx + 32, sy + 20), (st + 66, sy + 7), 9.5, mul(base, 1.12))
 
     camo = camouflage((GW * S, GH * S), tones, seed)
     sleeve.paste(camo, (0, 0), ImageChops.multiply(camo.getchannel('A'), sleeve.getchannel('A')))

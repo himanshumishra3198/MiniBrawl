@@ -130,6 +130,7 @@ namespace MiniBrawl.Networking.Replication
         Collider2D m_Collider;
         PlayerVisual m_Visual;
         PlayerSfx m_Sfx;
+        PlayerNameplate m_Nameplate;
         Color m_BaseColor;
 
         PlayerState m_State;
@@ -199,6 +200,7 @@ namespace MiniBrawl.Networking.Replication
             m_Collider = GetComponent<Collider2D>();
             m_Visual = GetComponent<PlayerVisual>();
             m_Sfx = GetComponent<PlayerSfx>();
+            m_Nameplate = GetComponentInChildren<PlayerNameplate>(includeInactive: true);
 
             m_SpawnPoint = transform.position;
             m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
@@ -453,17 +455,37 @@ namespace MiniBrawl.Networking.Replication
              * has no way to reach MatchDirector, which is the separation that keeps the simulation
              * layer free of FishNet. */
             Match.MatchDirector director = Match.MatchDirector.Instance;
-            if (director != null) m_BaseColor = director.ColorFor(OwnerId);
+            int seat = 0;
+            string playerName = "";
+
+            if (director != null && director.TryGetSlot(OwnerId, out Match.PlayerSlot slot))
+            {
+                seat = slot.ColorIndex;
+                playerName = slot.Name;
+                m_BaseColor = Match.PlayerColors.Get(seat);
+            }
 
             if (m_Visual != null)
             {
-                if (director != null) m_Visual.Seat = director.SeatFor(OwnerId);
+                m_Visual.Seat = seat;
                 m_Visual.SeatColor = m_BaseColor;
                 m_Visual.Hidden = dead;
                 m_Visual.Flashing = m_DamageFlash > 0f;
             }
 
+            if (m_Nameplate != null)
+            {
+                m_Nameplate.DisplayName = playerName;
+                m_Nameplate.Tint = m_BaseColor;
+                m_Nameplate.Hidden = dead || m_Absent;
+                m_Nameplate.IsLocal = IsOwner;
+            }
+
             if (m_Sfx != null) m_Sfx.IsLocal = IsOwner;
+
+            // The camera follows whoever is playing on this machine.
+            if (IsOwner && Gameplay.Map.CameraFollow.Instance != null)
+                Gameplay.Map.CameraFollow.Instance.Target = transform;
             if (m_Collider != null) m_Collider.enabled = !dead;
         }
     }

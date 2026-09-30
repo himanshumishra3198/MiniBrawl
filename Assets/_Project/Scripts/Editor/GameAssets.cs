@@ -81,8 +81,17 @@ public static class GameAssets
         return frames;
     }
 
-    public static AudioClip Sound(string name, bool longLoop = false) =>
-        ArtImport.Sound($"{k_Audio}/{name}.ogg", longLoop);
+    /// <summary>
+    /// A sound by name, whichever extension it arrived with. The Kenney packs ship .ogg; the
+    /// gunshots are synthesised by tools/gunshot.py and land as .wav, because writing Vorbis from
+    /// a build script would mean carrying an encoder for three files.
+    /// </summary>
+    public static AudioClip Sound(string name, bool longLoop = false)
+    {
+        string ogg = $"{k_Audio}/{name}.ogg";
+        string path = System.IO.File.Exists(ogg) ? ogg : $"{k_Audio}/{name}.wav";
+        return ArtImport.Sound(path, longLoop);
+    }
 
     public static AudioClip JetpackLoop() => Sound("jetpack_loop", longLoop: true);
 

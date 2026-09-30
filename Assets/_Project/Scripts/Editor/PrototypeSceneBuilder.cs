@@ -60,17 +60,24 @@ public static class PrototypeSceneBuilder
 
     internal static void BuildCamera()
     {
+        /* A rig that follows, with the camera as its child. ScreenShake writes the camera's
+         * localPosition, so the follow has to write something else or the two fight over the
+         * transform and whichever runs second wins. */
+        var rig = new GameObject("CameraRig");
+        rig.transform.position = new Vector3(0f, 0f, -10f);
+
         var go = new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" };
+        go.transform.SetParent(rig.transform, false);
+
         var cam = go.GetComponent<Camera>();
         cam.orthographic = true;
-        cam.orthographicSize = 6.5f;   // a starting value; CameraFitter sets it per screen shape
+        cam.orthographicSize = 4f;     // a starting value; CameraFollow sets it per screen shape
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = k_Background;
-        go.transform.position = new Vector3(0f, 0f, -10f);
 
-        // The room is 26 x 13 including walls, and must be fully visible on every screen or
-        // players near a wall go undrawn.
-        go.AddComponent<CameraFitter>();
+        var follow = rig.AddComponent<CameraFollow>();
+        follow.View = cam;
+
         go.AddComponent<ScreenShake>();
 
         /* Without this the game is silent, however correct everything downstream is. Unity's
@@ -136,12 +143,52 @@ public static class PrototypeSceneBuilder
          * points along +x, and placed at the muzzle: 0.995 units past the shoulder pivot, measured
          * off the rifle in tools/commando.py. This object is also what PlayerVisual reports as the
          * muzzle position, so sparks and tracers follow it without a second constant. */
+        BuildNameplate(root);
+
         visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
         visual.Muzzle.transform.localPosition = new Vector3(0.995f, 0.01f, 0f);
         visual.Muzzle.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
         visual.Muzzle.enabled = false;
 
         return visual;
+    }
+
+    /// <summary>
+    /// Name and health bar above a player, in world space.
+    ///
+    /// A child of the root rather than of the body, so it does not mirror when the body flips to
+    /// face the other way — a reversed name is worse than no name.
+    /// </summary>
+    static void BuildNameplate(GameObject root)
+    {
+        Sprite square = EnsureSquareSprite();
+        var plate = new GameObject("Nameplate");
+        plate.transform.SetParent(root.transform, false);
+        plate.transform.localPosition = new Vector3(0f, PlayerMotor.Size.y * 0.5f + 0.30f, 0f);
+
+        var nameplate = plate.AddComponent<PlayerNameplate>();
+
+        nameplate.BarBack = MakeRenderer("BarBack", plate.transform, square, 30);
+        nameplate.BarFill = MakeRenderer("BarFill", plate.transform, square, 31);
+
+        var labelGo = new GameObject("Name");
+        labelGo.transform.SetParent(plate.transform, false);
+        labelGo.transform.localPosition = new Vector3(0f, 0.16f, 0f);
+
+        var label = labelGo.AddComponent<TextMesh>();
+        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize = 64;            // rendered large and scaled down, so it stays crisp
+        label.characterSize = 0.022f;
+        label.anchor = TextAnchor.LowerCenter;
+        label.alignment = TextAlignment.Center;
+
+        // TextMesh brings its own MeshRenderer, which defaults to the wrong material and sorts
+        // behind every sprite in the scene.
+        var meshRenderer = labelGo.GetComponent<MeshRenderer>();
+        meshRenderer.sharedMaterial = label.font.material;
+        meshRenderer.sortingOrder = 32;
+
+        nameplate.Label = label;
     }
 
     static SpriteRenderer MakeRenderer(string name, Transform parent, Sprite sprite, int order)
@@ -232,6 +279,10 @@ public static class PrototypeSceneBuilder
         var driver = go.AddComponent<PlayerDriver>();
         driver.LevelMask = 1 << levelLayer;
         go.AddComponent<PrototypeInputSource>();
+
+        // Offline there is only ever one player, so the rig can be pointed at it directly.
+        CameraFollow follow = Object.FindFirstObjectByType<CameraFollow>();
+        if (follow != null) follow.Target = go.transform;
 
         var weapon = go.AddComponent<PlayerWeapon>();
         weapon.HitMask = (1 << levelLayer) | (1 << hittableLayer);

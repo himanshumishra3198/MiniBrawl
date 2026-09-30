@@ -56,9 +56,11 @@ jobs += [
 # Audio. Several variants where the sound repeats often enough that one clip
 # would turn into a machine-gun rattle; Sfx picks between them at random.
 jobs += [
-    (f'{SCI}/laserSmall_000.ogg', 'Audio/SFX/shoot_0.ogg'),
-    (f'{SCI}/laserSmall_001.ogg', 'Audio/SFX/shoot_1.ogg'),
-    (f'{SCI}/laserSmall_002.ogg', 'Audio/SFX/shoot_2.ogg'),
+    # Gunshots are synthesised by tools/gunshot.py. The sci-fi laser this replaced was the
+    # wrong instrument for a man holding an assault rifle.
+    (f'{GEN}/Audio/shoot_0.wav', 'Audio/SFX/shoot_0.wav'),
+    (f'{GEN}/Audio/shoot_1.wav', 'Audio/SFX/shoot_1.wav'),
+    (f'{GEN}/Audio/shoot_2.wav', 'Audio/SFX/shoot_2.wav'),
     (f'{IMP}/impactPunch_medium_000.ogg', 'Audio/SFX/hit_body_0.ogg'),
     (f'{IMP}/impactPunch_medium_001.ogg', 'Audio/SFX/hit_body_1.ogg'),
     (f'{IMP}/impactPlate_light_000.ogg',  'Audio/SFX/hit_wall_0.ogg'),

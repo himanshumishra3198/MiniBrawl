@@ -187,6 +187,25 @@ namespace MiniBrawl.Networking.Match
 
         /// <summary>The colour this connection was given, for tinting their square.</summary>
         /// <summary>
+        /// One lookup for everything the visuals need about a player.
+        ///
+        /// Colour, seat and name were three separate walks of the roster every frame for every
+        /// player. One walk answers all three.
+        /// </summary>
+        public bool TryGetSlot(int clientId, out PlayerSlot slot)
+        {
+            foreach (KeyValuePair<string, PlayerSlot> pair in m_Slots)
+            {
+                if (pair.Value.ClientId != clientId) continue;
+                slot = pair.Value;
+                return true;
+            }
+
+            slot = default;
+            return false;
+        }
+
+        /// <summary>
         /// The seat index behind <see cref="ColorFor"/>. The character skins are keyed by the same
         /// index, so a player's sprite, scoreboard row and hit sparks agree by construction rather
         /// than by two tables being kept in step by hand.
