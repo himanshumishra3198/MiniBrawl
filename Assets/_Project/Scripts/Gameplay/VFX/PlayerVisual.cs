@@ -67,15 +67,15 @@ namespace MiniBrawl.Gameplay.VFX
         float m_MuzzleRemaining;
 
         /// <summary>
-        /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 120px
+        /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 160px
         /// tall at 100 pixels per unit with its feet on the bottom edge, and the shoulder sits
-        /// 80px up from there, against a body whose feet are at -Size.y/2.
+        /// 113px up from there, against a body whose feet are at -Size.y/2.
         ///
         /// It is on the centre line on purpose. The real shoulder is a pixel forward of centre,
         /// but the body mirrors when aiming left and an off-centre anchor would make the weapon
         /// jump sideways as the player turned.
         /// </summary>
-        static readonly Vector3 k_GunAnchor = new Vector3(0f, 0.20f, 0f);
+        static readonly Vector3 k_GunAnchor = new Vector3(0f, 0.33f, 0f);
 
         void Awake()
         {
@@ -85,6 +85,20 @@ namespace MiniBrawl.Gameplay.VFX
 
         /// <summary>Called by the shooter's own code on every machine, so it needs no message.</summary>
         public void FlashMuzzle() => m_MuzzleRemaining = MuzzleFlashSeconds;
+
+        /// <summary>
+        /// Where the barrel actually ends, in world space.
+        ///
+        /// Read off the transform rather than reconstructed from a reach constant. That constant
+        /// has been wrong twice already — once for the sparks and once for the tracers — because
+        /// it has to be re-measured every time the character is resized, and nothing fails when
+        /// somebody forgets. The muzzle object is parented to the weapon, so it is correct for
+        /// every aim angle by construction. Its renderer is disabled between shots; the transform
+        /// is still live.
+        /// </summary>
+        public Vector2 MuzzleWorld => Muzzle != null
+            ? (Vector2)Muzzle.transform.position
+            : (Vector2)transform.position;
 
         void LateUpdate()
         {

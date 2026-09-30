@@ -8,11 +8,15 @@ namespace MiniBrawl.Gameplay.Player
     /// </summary>
     public static class PlayerMotor
     {
-        /* Height raised from 0.9 so the commando is legible on a phone: the arena is 26 units
-         * across, which left a 0.9-unit character about eight percent of the screen. Width is
-         * unchanged, so every horizontal gap in the level behaves exactly as it did, and the
-         * tallest change in clearance is still well inside the 2-unit platform gaps. */
-        public static readonly Vector2 Size = new Vector2(0.6f, 1.2f);
+        /* Height raised from 0.9 to 1.6 across two passes, both because the character was too
+         * small to read on a phone. At 1.6 it is about twelve percent of the visible height,
+         * which is roughly where Mini Militia sits.
+         *
+         * Width stays at 0.6 so every horizontal gap behaves exactly as it always has. The
+         * binding constraint is vertical: the tightest gap in the level is the 2.0 units between
+         * Platform_C and the ceiling, so this leaves 0.4 to spare and cannot go much further
+         * without redesigning the room. */
+        public static readonly Vector2 Size = new Vector2(0.6f, 1.6f);
         const float Skin = 0.02f;
 
         public static PlayerState Simulate(in PlayerState prev, in PlayerInput input,

@@ -19,11 +19,11 @@ public static class GameAssets
     static readonly Vector2 k_Feet = new Vector2(0.5f, 0f);
 
     /// <summary>
-    /// The shoulder, measured off the drawing in tools/commando.py: pixel (18, 20) of a 102x40
+    /// The shoulder, measured off the drawing in tools/commando.py: pixel (24, 27) of a 136x53
     /// sprite, normalised. The arm turns a full circle with the aim stick, and a pivot anywhere
     /// else makes the whole weapon orbit the body instead of swinging from it.
     /// </summary>
-    static readonly Vector2 k_Shoulder = new Vector2(18f / 102f, 0.5f);
+    static readonly Vector2 k_Shoulder = new Vector2(24f / 136f, 26f / 53f);
 
     public static Sprite Character(int seat, string pose) =>
         ArtImport.Sprite($"{k_Art}/Characters/player{seat}_{pose}.png", ArtImport.CharacterPPU, k_Feet);

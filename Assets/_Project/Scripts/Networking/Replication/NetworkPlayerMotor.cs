@@ -117,9 +117,9 @@ namespace MiniBrawl.Networking.Replication
 
         static readonly Color k_TracerColor = new Color(1f, 0.92f, 0.62f, 0.95f);
 
-        /// <summary>Where the muzzle sits along the aim direction, matching the drawn rifle so the
-        /// streak leaves the barrel rather than the middle of the player.</summary>
-        const float k_MuzzleReach = 0.78f;
+        /// <summary>Fallback muzzle offset, used only when there are no visuals to ask — on a
+        /// headless server, or in a test. PlayerVisual reports the real one.</summary>
+        const float k_MuzzleReach = 1.05f;
 
         readonly Vector2[] m_PredictedPositions = new Vector2[k_HistorySize];
         readonly uint[] m_PredictedTicks = new uint[k_HistorySize];
@@ -370,10 +370,12 @@ namespace MiniBrawl.Networking.Replication
         /// </summary>
         void PlayShotEffects(Vector2 direction, HitscanHit hit)
         {
-            // One muzzle position for every effect. The sparks used to use their own 0.5-unit
-            // guess from the body centre, which stopped being the barrel when the commando was
-            // redrawn — effects that share an origin should share the constant.
-            Vector2 muzzle = m_State.Position + direction * k_MuzzleReach;
+            /* One muzzle position for every effect, taken from the drawn weapon rather than
+             * guessed at. The sparks and the tracer each had their own constant, and both went
+             * stale the moment the character was resized. */
+            Vector2 muzzle = m_Visual != null
+                ? m_Visual.MuzzleWorld
+                : m_State.Position + direction * k_MuzzleReach;
 
             HitSparks sparks = HitSparks.Instance;
             if (sparks != null)

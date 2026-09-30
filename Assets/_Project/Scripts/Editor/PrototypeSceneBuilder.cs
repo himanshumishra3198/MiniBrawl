@@ -133,10 +133,11 @@ public static class PrototypeSceneBuilder
 
         /* A child of the arm, so it follows the barrel around without anyone having to recompute
          * where the barrel is. Turned a quarter circle because the sprite points up and the barrel
-         * points along +x, and placed at the muzzle: 0.745 units past the shoulder pivot, measured
-         * off the rifle in tools/commando.py. */
+         * points along +x, and placed at the muzzle: 0.995 units past the shoulder pivot, measured
+         * off the rifle in tools/commando.py. This object is also what PlayerVisual reports as the
+         * muzzle position, so sparks and tracers follow it without a second constant. */
         visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
-        visual.Muzzle.transform.localPosition = new Vector3(0.745f, 0.01f, 0f);
+        visual.Muzzle.transform.localPosition = new Vector3(0.995f, 0.01f, 0f);
         visual.Muzzle.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
         visual.Muzzle.enabled = false;
 

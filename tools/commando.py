@@ -1,67 +1,80 @@
-"""Para SF commando sprites, drawn from scratch.
+"""Indian Para SF commandos, drawn from scratch.
 
-Side view, not front. A front-facing character cannot hold a rifle convincingly —
-that is what made an earlier astronaut look wrong the moment a gun was attached.
-Side view also gives a silhouette that reads as a soldier: helmet, plate carrier,
-rifle, boots.
+Side view. A front-facing character cannot hold a rifle convincingly, and side
+view gives a silhouette that reads as a soldier at the size this is played at.
 
-The weapon is not a prop laid on top. The firing arm, support arm and rifle are
-one sprite pivoting at the shoulder, which is how a 2D shooter keeps the muzzle
-attached through a full 360 degrees of aim.
+The markers taken from reference photographs, in the order they survive being
+shrunk: the boonie hat's wide brim, a shemagh at the neck, the beard, wraparound
+sunglasses rather than goggles, a tan chest rig over camouflage, desert boots.
+The brim and the shemagh do most of the work — they change the outline, and the
+outline is all that is left at a distance.
 
-Uniform takes the seat colour, kit stays neutral: the largest coloured area on
-screen is the one that says which player this is. Six of these have to be told
-apart while moving, on a phone.
+Camouflage is generated from the seat colour rather than painted on top of it.
+Six players have to be told apart while moving, so the disruptive pattern is
+three tones of one hue: it reads as camo up close and as a single colour across
+the arena, which is what identification needs.
+
+The weapon is not a prop laid over the body. The firing arm, support arm and
+rifle are one sprite pivoting at the shoulder, so the muzzle stays attached
+through a full circle of aim.
 
 Drawn at 4x and downsampled — Pillow has no antialiased primitives.
 """
 import colorsys
 import math
 import os
-from PIL import Image, ImageDraw
+import random
+from PIL import Image, ImageChops, ImageDraw
 
 S = 4
-W, H = 64, 120           # 120px at 100 ppu = 1.2 world units
-
-# Walk is a four-frame cycle, not two poses. Two frames read as a shuffle no
-# matter how far apart the legs are, because a real walk passes through a low
-# point and a high point that two frames cannot express.
+W, H = 84, 160          # 160px at 100 ppu = 1.6 world units
 WALK_FRAMES = 4
 
-GEAR      = (66, 72, 82)
-GEAR_LIT  = (92, 100, 112)
-STRAP     = (33, 36, 42)
-BOOT      = (28, 30, 35)
-SKIN      = (206, 158, 118)
-SKIN_DARK = (170, 126, 92)
-VISOR     = (26, 30, 38)
-VISOR_LIT = (130, 205, 225)
-METAL     = (98, 106, 120)
-METAL_LIT = (155, 165, 182)
+RIG       = (138, 118, 82)      # coyote-tan chest rig
+RIG_DARK  = (104, 88, 60)
+RIG_LIT   = (166, 146, 108)
+STRAP     = (58, 52, 40)
+BOOT      = (122, 96, 62)       # desert boots, not black
+BOOT_DARK = (92, 72, 46)
+SKIN      = (198, 150, 110)
+SKIN_DARK = (158, 116, 82)
+BEARD     = (54, 42, 34)
+SHADES    = (24, 26, 32)
+SHADES_LIT= (96, 122, 140)
+SHEMAGH   = (150, 146, 112)     # olive-sand scarf
+SHEMAGH_D = (112, 108, 80)
+HAT       = (120, 116, 84)
+HAT_DARK  = (92, 88, 62)
+METAL     = (92, 98, 110)
+METAL_LIT = (146, 155, 170)
+GUNMETAL  = (58, 62, 70)
 
 
 def mul(rgb, f):
     return tuple(max(0, min(255, int(c * f))) for c in rgb)
 
 
-def uniform_from_seat(rgb01):
-    """Seat colour pushed towards something a uniform could plausibly be.
+def uniform_tones(rgb01):
+    """Three tones of the seat hue: base, shadow and a sun-bleached highlight.
 
-    The palette is pastel because it was picked for readable squares. Worn flat
-    on a soldier it looks like pyjamas, so saturation rises and value drops — far
-    enough to read as field dress, not so far that six collapse into one olive.
+    Real multicam mixes unrelated hues. Doing that here would cost the one thing
+    the colour is for, so the pattern varies value and saturation instead and
+    keeps the hue fixed.
     """
     h, s, v = colorsys.rgb_to_hsv(*rgb01)
-    return tuple(int(c * 255) for c in
-                 colorsys.hsv_to_rgb(h, min(1.0, s * 1.45 + 0.12), v * 0.62))
+    s = min(1.0, s * 1.4 + 0.10)
+    base = colorsys.hsv_to_rgb(h, s, v * 0.60)
+    dark = colorsys.hsv_to_rgb(h, min(1.0, s * 1.15), v * 0.40)
+    lite = colorsys.hsv_to_rgb(h, s * 0.62, v * 0.78)
+    return tuple(tuple(int(c * 255) for c in t) for t in (base, dark, lite))
 
 
 class Pen:
-    def __init__(self, d):
-        self.d = d
+    def __init__(self, img):
+        self.img = img
+        self.d = ImageDraw.Draw(img)
 
     def limb(self, a, b, t, fill):
-        """A bone as a capsule. Tapered quads came out as wedges."""
         self.d.line([a[0] * S, a[1] * S, b[0] * S, b[1] * S], fill=fill, width=int(t * S))
         for (x, y) in (a, b):
             self.d.ellipse([(x - t / 2) * S, (y - t / 2) * S,
@@ -76,147 +89,202 @@ class Pen:
     def pie(self, box, a, b, fill):
         self.d.pieslice([c * S for c in box], a, b, fill=fill)
 
+    def poly(self, pts, fill):
+        self.d.polygon([(x * S, y * S) for x, y in pts], fill=fill)
 
-def head(p, hx, hy):
-    """Helmet, goggles, balaclava.
 
-    Drawn as a jaw that juts forward rather than a circle. A round head reads as
-    a mascot, which is most of what was wrong with the first attempt — at this
-    size the shape of the skull is the only facial detail that survives.
+def camouflage(size, tones, seed):
+    """Blotches, to be clipped to whatever the uniform covers.
+
+    Seeded per seat so a given player's pattern is identical in every frame —
+    a pattern that crawled between walk frames would read as television static.
     """
-    p.rr((hx - 8, hy - 6, hx + 8, hy + 11), 7, SKIN)          # skull
-    p.rr((hx + 2, hy + 1, hx + 12, hy + 10), 3.5, SKIN)       # jaw, forward
-    p.rr((hx + 8, hy + 3, hx + 13, hy + 9), 2.5, SKIN_DARK)   # chin shadow
+    layer = Image.new('RGBA', size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    rng = random.Random(seed)
 
-    # Balaclava over nose and mouth, leaving a strip of cheek above it.
-    p.rr((hx - 8, hy + 4, hx + 13, hy + 12), 3, STRAP)
-    p.rr((hx - 7, hy + 9, hx + 9, hy + 13), 2.5, mul(STRAP, 0.85))
+    for _ in range(110):
+        tone = tones[rng.randint(1, 2)]
+        x = rng.uniform(0, size[0])
+        y = rng.uniform(0, size[1])
+        w = rng.uniform(5, 13) * S
+        h = rng.uniform(4, 10) * S
 
-    # Helmet: dome plus a brow that overhangs the goggles.
-    p.pie((hx - 10, hy - 13, hx + 11, hy + 8), 180, 360, GEAR)
-    p.rr((hx - 10, hy - 4, hx + 11, hy - 0.5), 1.5, mul(GEAR, 0.78))
-    p.rr((hx + 6, hy - 4, hx + 12, hy - 0.5), 1.5, mul(GEAR, 0.9))   # brow
-    p.rr((hx - 10, hy - 9, hx - 7, hy - 2), 1, GEAR_LIT)             # rear pad
+        # Overlapping ellipses per blob: a lone ellipse reads as a polka dot.
+        for k in range(3):
+            ox = x + rng.uniform(-w * 0.35, w * 0.35)
+            oy = y + rng.uniform(-h * 0.35, h * 0.35)
+            d.ellipse([ox - w / 2, oy - h / 2, ox + w / 2, oy + h / 2], fill=tone)
 
-    # Goggles sit under the brow. The glint is what makes them read as glass.
-    p.rr((hx - 1, hy - 2, hx + 12, hy + 4), 2, VISOR)
-    p.rr((hx + 6, hy - 1, hx + 11, hy + 1.5), 1, VISOR_LIT)
-    p.rr((hx - 9, hy - 1, hx + 1, hy + 2), 1, mul(STRAP, 1.1))       # strap
+    return layer
 
 
-def leg(p, hip, knee, foot, uni, back=False):
-    f = 0.70 if back else 1.0
-    p.limb(hip, knee, 9.5, mul(uni, f))
-    p.limb(knee, foot, 8, mul(uni, f))
+def head(p, hx, hy, tones):
+    """Boonie hat, sunglasses, beard, shemagh.
+
+    The hat brim is the single most recognisable thing here: it breaks the round
+    skull that made an earlier attempt look like a mascot, and it survives being
+    shrunk when nothing else on the face does.
+    """
+    p.rr((hx - 9, hy - 7, hx + 10, hy + 15), 8, SKIN)            # skull
+    p.rr((hx + 3, hy + 2, hx + 15, hy + 14), 4, SKIN)            # jaw forward
+
+    # Beard along the jaw. Worn by most of the operators in the reference and,
+    # usefully, a dark shape that separates the head from the neck.
+    p.rr((hx - 2, hy + 9, hx + 16, hy + 18), 3.5, BEARD)
+    p.rr((hx + 9, hy + 6, hx + 16, hy + 16), 3, BEARD)
+    p.rr((hx + 1, hy + 3, hx + 14, hy + 9), 2.5, mul(SKIN, 1.05))  # cheek left visible
+
+    # Wraparound sunglasses, not goggles: thinner, darker, no strap.
+    p.rr((hx + 1, hy - 1, hx + 15, hy + 4), 2, SHADES)
+    p.rr((hx + 9, hy, hx + 14, hy + 1.8), 0.8, SHADES_LIT)
+    p.rr((hx - 6, hy - 0.5, hx + 2, hy + 2), 1, mul(SHADES, 1.2))
+
+    # Boonie hat: crown then a brim wider than the head on both sides.
+    p.pie((hx - 11, hy - 18, hx + 12, hy + 4), 180, 360, HAT)
+    p.rr((hx - 16, hy - 5, hx + 19, hy - 1), 2, HAT)
+    p.rr((hx - 16, hy - 3, hx + 19, hy - 1), 1.5, HAT_DARK)      # brim underside
+    p.rr((hx - 10, hy - 9, hx + 11, hy - 6), 1.5, HAT_DARK)      # crown band
+
+    # Shemagh bunched at the neck.
+    p.rr((hx - 7, hy + 15, hx + 12, hy + 24), 4, SHEMAGH)
+    p.rr((hx - 5, hy + 19, hx + 9, hy + 23), 2, SHEMAGH_D)
+    p.poly([(hx - 7, hy + 20), (hx - 1, hy + 19), (hx - 3, hy + 29)], SHEMAGH_D)
+
+
+def leg(p, hip, knee, foot, tone, back=False):
+    f = 0.72 if back else 1.0
+    p.limb(hip, knee, 13, mul(tone, f))
+    p.limb(knee, foot, 11, mul(tone, f))
+
+
+def boot(p, foot, back=False):
     bx, by = foot
-    p.rr((bx - 5, by - 3, bx + 8, by + 4), 2, mul(BOOT, 0.8 if back else 1.0))
+    p.rr((bx - 6, by - 4, bx + 10, by + 5), 2.5, mul(BOOT, 0.8 if back else 1.0))
+    p.rr((bx - 6, by + 2, bx + 10, by + 5), 1.5, mul(BOOT_DARK, 0.8 if back else 1.0))
 
 
-def walk_leg(phase, hip_x, knee_y, foot_y, reach=11.0, lift=7.0):
+def walk_leg(phase, hip_x, knee_y, foot_y, reach=14.0, lift=9.0):
     """One leg at a point in the cycle, as (knee, foot).
 
-    Horizontal swing alone is not a walk. Swinging both legs on a plain sine put
-    the two passing positions in the same place, so half a four-frame cycle was a
-    duplicate of the other half and the whole thing read as a shuffle. The foot
-    has to leave the ground on the way forward — that is what separates the two
-    passing frames from each other, and a walk from a slide.
-
-    phase 0 is contact with this leg forward; 0.5 is contact with it behind.
+    Swinging both legs on a plain sine put the two passing positions in the same
+    place, so half a four-frame cycle duplicated the other half and the whole
+    thing read as a shuffle. The foot has to leave the ground on the way forward.
     """
     a = 2 * math.pi * phase
     x = math.cos(a)
-    up = max(0.0, -math.sin(a))          # peaks mid-swing, zero while planted
+    up = max(0.0, -math.sin(a))
     return ((hip_x + x * reach * 0.5, knee_y - up * lift * 0.55),
             (hip_x + x * reach, foot_y - up * lift))
 
 
-def body(seat_rgb01, pose):
-    uni = uniform_from_seat(seat_rgb01)
-    img = Image.new('RGBA', (W * S, H * S), (0, 0, 0, 0))
-    p = Pen(ImageDraw.Draw(img))
+def body(seat_rgb01, pose, seed):
+    tones = uniform_tones(seat_rgb01)
+    base = tones[0]
 
-    cx = 29
-    hip_y, knee_y, foot_y = 78, 99, 114
+    # Uniform on its own layer so the camouflage can be clipped to exactly what
+    # it covers — cloth, not rig or skin.
+    cloth = Image.new('RGBA', (W * S, H * S), (0, 0, 0, 0))
+    pc = Pen(cloth)
+
+    cx = 38
+    hip_y, knee_y, foot_y = 104, 132, 152
     drop = 0
     lean = 0
 
     if pose.startswith('walk'):
         t = (int(pose[4:]) - 1) / WALK_FRAMES
-        # The body is lowest at contact, when the legs are spread and neither is
-        # carrying it straight. Without the drop the torso glides.
-        drop, lean = abs(math.cos(2 * math.pi * t)) * 2.0, 1
-        front = walk_leg(t, cx + 2, knee_y, foot_y)
-        back = walk_leg(t + 0.5, cx - 2, knee_y, foot_y)
+        drop, lean = abs(math.cos(2 * math.pi * t)) * 2.5, 1
+        front = walk_leg(t, cx + 3, knee_y, foot_y)
+        back = walk_leg(t + 0.5, cx - 3, knee_y, foot_y)
     elif pose == 'jump':
         drop, lean = -1, 0
-        front = (cx + 8, knee_y - 10), (cx + 5, foot_y - 12)
-        back = (cx + 3, knee_y - 3), (cx + 12, foot_y - 3)
+        front = (cx + 11, knee_y - 14), (cx + 7, foot_y - 16)
+        back = (cx + 4, knee_y - 4), (cx + 16, foot_y - 4)
     elif pose == 'hurt':
-        drop, lean = 2, -3
-        front = (cx + 6, knee_y), (cx + 10, foot_y)
-        back = (cx - 8, knee_y), (cx - 13, foot_y)
-    else:  # stand
-        front = (cx + 5, knee_y), (cx + 7, foot_y)
-        back = (cx - 4, knee_y), (cx - 7, foot_y)
+        drop, lean = 3, -4
+        front = (cx + 8, knee_y), (cx + 13, foot_y)
+        back = (cx - 10, knee_y), (cx - 17, foot_y)
+    else:
+        front = (cx + 6, knee_y), (cx + 9, foot_y)
+        back = (cx - 5, knee_y), (cx - 9, foot_y)
 
     top = hip_y + drop
-    leg(p, (cx - 2, top), back[0], back[1], uni, back=True)
-    leg(p, (cx + 2, top), front[0], front[1], uni)
+    ty = 45 + drop
 
-    ty = 34 + drop                                   # torso top
-    p.limb((cx - 1 + lean, ty + 8), (cx + 5 + lean, ty + 24), 7, mul(uni, 0.68))
+    leg(pc, (cx - 3, top), back[0], back[1], base, back=True)
+    leg(pc, (cx + 3, top), front[0], front[1], base)
+    pc.limb((cx - 1 + lean, ty + 11), (cx + 7 + lean, ty + 32), 9.5, mul(base, 0.70))  # support arm
+    pc.rr((cx - 13, top - 13, cx + 13, top + 5), 5, mul(base, 0.9))                    # hips
+    pc.rr((cx - 13 + lean, ty, cx + 13 + lean, top - 5), 7, base)                      # torso
 
-    p.rr((cx - 10, top - 10, cx + 10, top + 4), 4, mul(uni, 0.88))          # hips
-    p.rr((cx - 10 + lean, ty, cx + 10 + lean, top - 4), 6, uni)             # torso
-    p.rr((cx - 9 + lean, ty + 2, cx + 9 + lean, ty + 16), 5, mul(uni, 1.12))
+    # Clip the pattern to the cloth: blotches over the rig or the face would be
+    # paint, not camouflage.
+    camo = camouflage((W * S, H * S), tones, seed)
+    mask = ImageChops.multiply(camo.getchannel('A'), cloth.getchannel('A'))
+    cloth.paste(camo, (0, 0), mask)
 
-    p.rr((cx - 7 + lean, ty + 6, cx + 8 + lean, top - 16), 3, GEAR)         # carrier
-    p.rr((cx - 5 + lean, ty + 13, cx - 1 + lean, ty + 21), 1.5, GEAR_LIT)
-    p.rr((cx + 1 + lean, ty + 13, cx + 5 + lean, ty + 21), 1.5, GEAR_LIT)
-    p.rr((cx - 10 + lean, ty + 2, cx + 10 + lean, ty + 6), 1.5, STRAP)
-    p.rr((cx - 10, top - 9, cx + 10, top - 4), 1.5, STRAP)                  # belt
-    p.rr((cx + 3, top + 2, cx + 9, top + 13), 2, GEAR)                      # thigh rig
+    img = Image.new('RGBA', (W * S, H * S), (0, 0, 0, 0))
+    img.alpha_composite(cloth)
+    p = Pen(img)
 
-    p.rr((cx + 1 + lean, ty - 7, cx + 6 + lean, ty + 2), 2.5, SKIN_DARK)    # neck
-    head(p, cx + 1 + lean, ty - 18)
+    boot(p, back[1], back=True)
+    boot(p, front[1])
+
+    # Chest rig and belt kit, over the camouflage and deliberately not patterned.
+    p.rr((cx - 10 + lean, ty + 7, cx + 11 + lean, top - 20), 3.5, RIG)
+    p.rr((cx - 7 + lean, ty + 17, cx - 1 + lean, ty + 29), 1.5, RIG_DARK)
+    p.rr((cx + 1 + lean, ty + 17, cx + 7 + lean, ty + 29), 1.5, RIG_DARK)
+    p.rr((cx - 10 + lean, ty + 11, cx + 11 + lean, ty + 14), 1, RIG_LIT)
+    p.rr((cx - 13 + lean, ty + 2, cx + 13 + lean, ty + 7), 2, STRAP)     # shoulder straps
+    p.rr((cx - 13, top - 12, cx + 13, top - 6), 2, STRAP)                # belt
+    p.rr((cx + 4, top + 2, cx + 12, top + 17), 2.5, RIG_DARK)            # dump pouch
+    p.rr((cx - 12, top - 4, cx - 6, top + 6), 2, RIG_DARK)               # rear pouch
+
+    p.rr((cx + 1 + lean, ty - 9, cx + 7 + lean, ty + 3), 3, SKIN_DARK)   # neck
+    head(p, cx + 1 + lean, ty - 24, tones)
 
     return img.resize((W, H), Image.LANCZOS)
 
 
 # --- weapon arm -------------------------------------------------------------
-GW, GH = 102, 40
-GRIP = (18, 20)
+GW, GH = 136, 53
+GRIP = (24, 27)
 
 
-def weapon_arm(seat_rgb01):
-    """Firing arm and rifle as one sprite, pivoting at the shoulder."""
-    uni = uniform_from_seat(seat_rgb01)
-    img = Image.new('RGBA', (GW * S, GH * S), (0, 0, 0, 0))
-    p = Pen(ImageDraw.Draw(img))
+def weapon_arm(seat_rgb01, seed):
+    tones = uniform_tones(seat_rgb01)
+    base = tones[0]
 
+    sleeve = Image.new('RGBA', (GW * S, GH * S), (0, 0, 0, 0))
+    ps = Pen(sleeve)
     sx, sy = GRIP
-    st = sx + 3
+    st = sx + 4
 
-    # Rifle first, arms over it, so the hands read as gripping the weapon.
-    p.rr((st, sy - 4, st + 18, sy + 4), 2.5, mul(GEAR, 0.86))            # stock
-    p.rr((st + 16, sy - 7, st + 42, sy + 4), 2.5, GEAR)                  # receiver
-    p.rr((st + 20, sy - 11, st + 33, sy - 6), 1.5, mul(GEAR, 1.25))      # optic
-    p.rr((st + 24, sy - 14, st + 29, sy - 10), 1, mul(GEAR, 1.1))
-    p.rr((st + 26, sy + 4, st + 36, sy + 17), 2, mul(GEAR, 0.78))        # magazine
-    p.rr((st + 41, sy - 3, st + 71, sy + 1.5), 2, METAL)                 # barrel
-    p.rr((st + 45, sy - 5, st + 58, sy + 3), 1.5, mul(GEAR, 1.05))       # handguard
-    p.rr((st + 68, sy - 5, st + 75, sy + 3), 1.5, METAL_LIT)             # muzzle
+    ps.limb((sx, sy), (sx + 19, sy + 15), 11, mul(base, 0.95))
+    ps.limb((sx + 19, sy + 15), (st + 33, sy + 11), 9.5, base)
+    ps.limb((sx + 5, sy + 8), (sx + 32, sy + 20), 8, mul(base, 1.12))
+    ps.limb((sx + 32, sy + 20), (st + 66, sy + 7), 8, mul(base, 1.12))
 
-    p.limb((sx, sy), (sx + 14, sy + 11), 8, mul(uni, 0.95))              # upper arm
-    p.limb((sx + 14, sy + 11), (st + 25, sy + 8), 7, uni)                # forearm
-    p.ell((st + 21, sy + 4, st + 30, sy + 13), STRAP)                    # trigger hand
+    camo = camouflage((GW * S, GH * S), tones, seed)
+    sleeve.paste(camo, (0, 0), ImageChops.multiply(camo.getchannel('A'), sleeve.getchannel('A')))
 
-    # Support arm routed under the magazine with a real elbow. Straight from
-    # shoulder to handguard it lay across the receiver and optic — the parts
-    # that make the shape read as a rifle.
-    p.limb((sx + 4, sy + 6), (sx + 24, sy + 15), 6, mul(uni, 1.14))
-    p.limb((sx + 24, sy + 15), (st + 50, sy + 5), 6, mul(uni, 1.14))
-    p.ell((st + 46, sy, st + 55, sy + 9), STRAP)                         # support hand
+    img = Image.new('RGBA', (GW * S, GH * S), (0, 0, 0, 0))
+    p = Pen(img)
+
+    # Rifle under the arms, so the hands read as gripping it.
+    p.rr((st, sy - 4, st + 24, sy + 3), 2.5, mul(GUNMETAL, 0.9))         # stock
+    p.rr((st + 21, sy - 6, st + 56, sy + 3), 2.5, GUNMETAL)              # receiver
+    p.rr((st + 28, sy - 11, st + 43, sy - 5), 1.5, mul(GUNMETAL, 1.3))   # optic
+    p.rr((st + 33, sy - 14, st + 39, sy - 9), 1, mul(GUNMETAL, 1.15))
+    p.rr((st + 34, sy + 3, st + 46, sy + 19), 2, mul(GUNMETAL, 0.8))     # magazine
+    p.rr((st + 55, sy - 3, st + 95, sy + 1), 2, METAL)                   # barrel
+    p.rr((st + 59, sy - 5, st + 77, sy + 3), 1.5, mul(GUNMETAL, 1.05))   # handguard
+    p.rr((st + 91, sy - 5, st + 100, sy + 3), 1.5, METAL_LIT)            # muzzle
+
+    img.alpha_composite(sleeve)
+    p.ell((st + 29, sy + 6, st + 41, sy + 18), STRAP)                    # trigger hand
+    p.ell((st + 61, sy + 1, st + 73, sy + 13), STRAP)                    # support hand
 
     return img.resize((GW, GH), Image.LANCZOS)
 
@@ -236,7 +304,7 @@ if __name__ == '__main__':
     os.makedirs('gen/Weapons', exist_ok=True)
     for i, (name, rgb) in enumerate(SEATS):
         for pose in POSES:
-            body(rgb, pose).save(f'gen/Characters/player{i}_{pose}.png')
-        weapon_arm(rgb).save(f'gen/Weapons/arm{i}.png')
-    print(f'body {W}x{H}, arm {GW}x{GH} pivot {GRIP}, {WALK_FRAMES}-frame walk')
+            body(rgb, pose, seed=i * 17 + 3).save(f'gen/Characters/player{i}_{pose}.png')
+        weapon_arm(rgb, seed=i * 17 + 3).save(f'gen/Weapons/arm{i}.png')
+    print(f'body {W}x{H}, arm {GW}x{GH} pivot {GRIP}')
     print(f'wrote {len(SEATS) * len(POSES)} frames + {len(SEATS)} arms')
