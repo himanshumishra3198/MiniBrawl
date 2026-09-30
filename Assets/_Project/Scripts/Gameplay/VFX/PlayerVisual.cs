@@ -16,8 +16,12 @@ namespace MiniBrawl.Gameplay.VFX
     [DisallowMultipleComponent]
     public sealed class PlayerVisual : MonoBehaviour
     {
-        /// <summary>One seat's frames. Six poses is the whole animation budget, and enough:
-        /// at phone scale a player is about 90 pixels tall and reads as pose, not as detail.</summary>
+        /// <summary>One seat's frames. Five poses is the whole animation budget, and enough:
+        /// at phone scale a player is about 90 pixels tall and reads as pose, not as detail.
+        ///
+        /// The arm carries the rifle and is per-seat rather than shared, because it wears the
+        /// same uniform colour as the body — a shared grey weapon would have broken the one rule
+        /// that matters with six players on screen, which is that a player is one colour.</summary>
         [Serializable]
         public struct Skin
         {
@@ -26,6 +30,7 @@ namespace MiniBrawl.Gameplay.VFX
             public Sprite Walk2;
             public Sprite Jump;
             public Sprite Hurt;
+            public Sprite Arm;
         }
 
         [Tooltip("One per seat, in PlayerColors order.")]
@@ -58,9 +63,16 @@ namespace MiniBrawl.Gameplay.VFX
         float m_WalkPhase;
         float m_MuzzleRemaining;
 
-        /// <summary>Local offsets, resolved once: the gun pivots at the chest and the jet fires
-        /// from the feet, both relative to a body whose feet sit at -Size.y/2.</summary>
-        static readonly Vector3 k_GunAnchor = new Vector3(0f, -0.05f, 0f);
+        /// <summary>
+        /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 92px
+        /// tall at 100 pixels per unit with its feet on the bottom edge, and the shoulder sits
+        /// 51px up from there, against a body whose feet are at -Size.y/2.
+        ///
+        /// It is on the centre line on purpose. The real shoulder is a pixel forward of centre,
+        /// but the body mirrors when aiming left and an off-centre anchor would make the weapon
+        /// jump sideways as the player turned.
+        /// </summary>
+        static readonly Vector3 k_GunAnchor = new Vector3(0f, 0.06f, 0f);
 
         void Awake()
         {
@@ -119,6 +131,9 @@ namespace MiniBrawl.Gameplay.VFX
 
             if (pose != null) Body.sprite = pose;
             Body.flipX = facingLeft;
+
+            // The arm belongs to the same seat as the body it is attached to.
+            if (Gun != null && skin.Arm != null) Gun.sprite = skin.Arm;
 
             /* A white flash reads as "that landed" better than a colour shift does, and the seat
              * tint is what identifies the player, so health is shown by draining towards red only

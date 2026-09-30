@@ -18,16 +18,19 @@ public static class GameAssets
     /// <summary>Feet-on-the-ground pivot, so frames of different heights still stand on the floor.</summary>
     static readonly Vector2 k_Feet = new Vector2(0.5f, 0f);
 
-    /// <summary>The grip, measured off the drawing in tools/gun.py. The weapon turns a full circle
-    /// with the aim stick, and a pivot anywhere else makes the barrel orbit the body.</summary>
-    static readonly Vector2 k_Grip = new Vector2(0.25f, 0.32f);
+    /// <summary>
+    /// The shoulder, measured off the drawing in tools/commando.py: pixel (14, 15) of a 78x30
+    /// sprite, normalised. The arm turns a full circle with the aim stick, and a pivot anywhere
+    /// else makes the whole weapon orbit the body instead of swinging from it.
+    /// </summary>
+    static readonly Vector2 k_Shoulder = new Vector2(14f / 78f, 0.5f);
 
     public static Sprite Character(int seat, string pose) =>
         ArtImport.Sprite($"{k_Art}/Characters/player{seat}_{pose}.png", ArtImport.CharacterPPU, k_Feet);
 
-    public static Sprite Weapon() =>
-        ArtImport.Sprite($"{k_Art}/Weapons/weapon_blaster.png", ArtImport.CharacterPPU, k_Grip,
-                         filter: FilterMode.Point);   // 56px of hand-drawn edges; bilinear smears them
+    /// <summary>The firing arm and rifle for one seat, pivoting at the shoulder.</summary>
+    public static Sprite Arm(int seat) =>
+        ArtImport.Sprite($"{k_Art}/Weapons/arm{seat}.png", ArtImport.CharacterPPU, k_Shoulder);
 
     public static Sprite Particle(string name) => Particle(name, new Vector2(0.5f, 0.5f));
 
@@ -65,6 +68,7 @@ public static class GameAssets
                 Walk2 = Character(seat, "walk2"),
                 Jump  = Character(seat, "jump"),
                 Hurt  = Character(seat, "hurt"),
+                Arm   = Arm(seat),
             };
         }
         return skins;

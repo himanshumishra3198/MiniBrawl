@@ -14,7 +14,7 @@ using UnityEngine;
 public static class ArtImport
 {
     /// <summary>
-    /// World scale for character and weapon art: 100 pixels to the unit. The alien frames are
+    /// World scale for character and weapon art: 100 pixels to the unit. The commando frames are
     /// 92px tall, which lands a player at 0.92 units against a 0.9-unit collision box — the sprite
     /// reads a touch larger than its hitbox, which is what platformers want.
     /// </summary>

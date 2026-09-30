@@ -116,7 +116,9 @@ public static class PrototypeSceneBuilder
         visual.Body = MakeRenderer("Body", root.transform, GameAssets.Character(0, "stand"), 10);
         visual.Body.transform.localPosition = new Vector3(0f, feet, 0f);
 
-        visual.Gun = MakeRenderer("Gun", root.transform, GameAssets.Weapon(), 11);
+        // Seat 0's arm is a placeholder; PlayerVisual swaps in the right seat's once the roster
+        // says which seat this is.
+        visual.Gun = MakeRenderer("Gun", root.transform, GameAssets.Arm(0), 11);
 
         // Pivoted at its base and turned to hang downwards, so lengthening the flame grows it away
         // from the feet instead of up through the body.
@@ -124,11 +126,12 @@ public static class PrototypeSceneBuilder
         visual.Jet.transform.localPosition = new Vector3(0f, feet + 0.05f, 0f);
         visual.Jet.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
 
-        /* A child of the gun, so it follows the barrel around without anyone having to recompute
+        /* A child of the arm, so it follows the barrel around without anyone having to recompute
          * where the barrel is. Turned a quarter circle because the sprite points up and the barrel
-         * points along +x, and placed at the muzzle: 0.42 units past the grip pivot. */
+         * points along +x, and placed at the muzzle: 0.57 units past the shoulder pivot, measured
+         * off the rifle in tools/commando.py. */
         visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
-        visual.Muzzle.transform.localPosition = new Vector3(0.42f, 0f, 0f);
+        visual.Muzzle.transform.localPosition = new Vector3(0.57f, 0.01f, 0f);
         visual.Muzzle.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
         visual.Muzzle.enabled = false;
 
