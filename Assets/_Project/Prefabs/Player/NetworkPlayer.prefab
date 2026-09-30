@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 2882716735144765893}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.45, z: 0}
+  m_LocalPosition: {x: 0, y: -0.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -86,7 +86,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 0.48, y: 0.92}
+  m_Size: {x: 0.64, y: 1.2}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -178,7 +178,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 0.78, y: 0.3}
+  m_Size: {x: 1.02, y: 0.4}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -209,7 +209,7 @@ Transform:
   m_GameObject: {fileID: 3653531929596092675}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 1, w: -0.00000004371139}
-  m_LocalPosition: {x: 0, y: -0.39999998, z: 0}
+  m_LocalPosition: {x: 0, y: -0.55, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -300,7 +300,7 @@ Transform:
   m_GameObject: {fileID: 3885058070490908450}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: -0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: 0.57, y: 0.01, z: 0}
+  m_LocalPosition: {x: 0.745, y: 0.01, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -419,38 +419,56 @@ MonoBehaviour:
   m_EditorClassIdentifier: MiniBrawl.Gameplay::MiniBrawl.Gameplay.VFX.PlayerVisual
   Skins:
   - Stand: {fileID: 21300000, guid: da5598374a7e146609ea7027bd5a2ccc, type: 3}
-    Walk1: {fileID: 21300000, guid: 67990361fcc7f417aa22b08aea64eba6, type: 3}
-    Walk2: {fileID: 21300000, guid: 1e519d6d0034f4c4c9b0cc6c68139436, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 67990361fcc7f417aa22b08aea64eba6, type: 3}
+    - {fileID: 21300000, guid: 1e519d6d0034f4c4c9b0cc6c68139436, type: 3}
+    - {fileID: 21300000, guid: ecd9b93a9b68047ac9d0b1aedccf44f9, type: 3}
+    - {fileID: 21300000, guid: 922ef9d9bf5d543f1ab3595ba29f5fb3, type: 3}
     Jump: {fileID: 21300000, guid: b9794effb1e7440718605ed7658d6f4d, type: 3}
     Hurt: {fileID: 21300000, guid: 9755c91b697db47e4afeb6ee07960573, type: 3}
     Arm: {fileID: 21300000, guid: fe8bf0825b8134615a784a3e65261bc0, type: 3}
   - Stand: {fileID: 21300000, guid: c67d88479d3cf4cf680f96b5d547c550, type: 3}
-    Walk1: {fileID: 21300000, guid: 5757804bdca3c4ddb9e094bb2bed6da2, type: 3}
-    Walk2: {fileID: 21300000, guid: b1d0c63a0a6ab414bb46b60ee3bcc06d, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 5757804bdca3c4ddb9e094bb2bed6da2, type: 3}
+    - {fileID: 21300000, guid: b1d0c63a0a6ab414bb46b60ee3bcc06d, type: 3}
+    - {fileID: 21300000, guid: 2b166c63123be4a728ad8017128be45f, type: 3}
+    - {fileID: 21300000, guid: 15a326bfa27ca45a9b6fe642448b00d7, type: 3}
     Jump: {fileID: 21300000, guid: f2c62e409e7954973a7fc52ed193ff64, type: 3}
     Hurt: {fileID: 21300000, guid: 74f9d422cc655438e8025c08a2f82f0c, type: 3}
     Arm: {fileID: 21300000, guid: f9749261149284438824b40960a80b9c, type: 3}
   - Stand: {fileID: 21300000, guid: b7f4e35be46b148b897cd01be07f45f7, type: 3}
-    Walk1: {fileID: 21300000, guid: 624f23c8293e04022ae29a59c833b77c, type: 3}
-    Walk2: {fileID: 21300000, guid: e70cf6e129bf54ae28636f6fb1a64223, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 624f23c8293e04022ae29a59c833b77c, type: 3}
+    - {fileID: 21300000, guid: e70cf6e129bf54ae28636f6fb1a64223, type: 3}
+    - {fileID: 21300000, guid: fc11f5fed61634e6a88ea253c9e82bcb, type: 3}
+    - {fileID: 21300000, guid: c5e8b147da5e74f0a9b8a360639ea84b, type: 3}
     Jump: {fileID: 21300000, guid: e8472feec22244cafbcf67452c5cfafb, type: 3}
     Hurt: {fileID: 21300000, guid: 2251f0906eac74a84ab875eea7125ec6, type: 3}
     Arm: {fileID: 21300000, guid: 776848d47b4ad41208e9a617bb482f33, type: 3}
   - Stand: {fileID: 21300000, guid: 8ee6bea81a9104fd98eb5807266b0db4, type: 3}
-    Walk1: {fileID: 21300000, guid: 0888e7d5f0a304bf098b98a98b03d257, type: 3}
-    Walk2: {fileID: 21300000, guid: 0a204ba9b0303417b887be49759a5845, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 0888e7d5f0a304bf098b98a98b03d257, type: 3}
+    - {fileID: 21300000, guid: 0a204ba9b0303417b887be49759a5845, type: 3}
+    - {fileID: 21300000, guid: 07d4efe92d8784820b1431d2b49c62f7, type: 3}
+    - {fileID: 21300000, guid: cd1b40257aa2a4bb280d22ea77ff51a4, type: 3}
     Jump: {fileID: 21300000, guid: 98eadfc84c5a344718fe874854be0619, type: 3}
     Hurt: {fileID: 21300000, guid: a212d7b1c1e3d4f90a59151a535be6c5, type: 3}
     Arm: {fileID: 21300000, guid: be6418380ce4344ba9d80ab9312314ce, type: 3}
   - Stand: {fileID: 21300000, guid: 39dbcd908a2b34b43baa38a47c07ca91, type: 3}
-    Walk1: {fileID: 21300000, guid: 85be65d4014b946f8b637757eac46d40, type: 3}
-    Walk2: {fileID: 21300000, guid: 2981baab83eaf44828691c1fd09cdf50, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 85be65d4014b946f8b637757eac46d40, type: 3}
+    - {fileID: 21300000, guid: 2981baab83eaf44828691c1fd09cdf50, type: 3}
+    - {fileID: 21300000, guid: 1dddf8754283b4356a6b761df99ba8c0, type: 3}
+    - {fileID: 21300000, guid: 24c42a779540246bdbfa62fc9f5ede6c, type: 3}
     Jump: {fileID: 21300000, guid: 95952cea7c0d0445eaa5fb404b45d608, type: 3}
     Hurt: {fileID: 21300000, guid: dacee09f40a7d4af9a4ed3ee3df08298, type: 3}
     Arm: {fileID: 21300000, guid: b4bcab5ec96a7494f85f348ab5e48540, type: 3}
   - Stand: {fileID: 21300000, guid: 33d1731242d20498d82c4b1a2235f8b1, type: 3}
-    Walk1: {fileID: 21300000, guid: 43b366b098ad1407dae088f9627dfde1, type: 3}
-    Walk2: {fileID: 21300000, guid: 1c0aa3555f40b4ec087d520576110aa3, type: 3}
+    Walk:
+    - {fileID: 21300000, guid: 43b366b098ad1407dae088f9627dfde1, type: 3}
+    - {fileID: 21300000, guid: 1c0aa3555f40b4ec087d520576110aa3, type: 3}
+    - {fileID: 21300000, guid: 391b0c0cf763b40579d1395a3f0e8cbd, type: 3}
+    - {fileID: 21300000, guid: 664de243e1546411398f7885d55e1121, type: 3}
     Jump: {fileID: 21300000, guid: dddacdf7f77024d0ea0af710a2d6d6a3, type: 3}
     Hurt: {fileID: 21300000, guid: 0db28ff48ce184adc83770c9768cda94, type: 3}
     Arm: {fileID: 21300000, guid: e73ae625c1258435d82364de128a43a2, type: 3}
@@ -458,7 +476,7 @@ MonoBehaviour:
   Gun: {fileID: 1886053861769198001}
   Jet: {fileID: 8585061536250143589}
   Muzzle: {fileID: 2362073324759129857}
-  Stride: 0.42
+  Stride: 0.34
   MuzzleFlashSeconds: 0.05
   JetScale: {x: 0.34, y: 0.55}
   MuzzleScale: 0.4
@@ -527,7 +545,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.6, y: 0.9}
+  m_Size: {x: 0.6, y: 1.2}
   m_EdgeRadius: 0
 --- !u!114 &5423613169323998967
 MonoBehaviour:

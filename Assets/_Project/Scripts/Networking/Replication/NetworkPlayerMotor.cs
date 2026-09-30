@@ -115,9 +115,11 @@ namespace MiniBrawl.Networking.Replication
         /// <summary>Two seconds of predicted positions, enough to cover any reconcile that arrives.</summary>
         const int k_HistorySize = 64;
 
-        const float k_TracerDuration = 0.06f;
-        static readonly Color k_AimColor = new Color(1f, 1f, 1f, 0.25f);
-        static readonly Color k_TracerColor = new Color(1f, 0.85f, 0.4f, 0.95f);
+        static readonly Color k_TracerColor = new Color(1f, 0.92f, 0.62f, 0.95f);
+
+        /// <summary>Where the muzzle sits along the aim direction, matching the drawn rifle so the
+        /// streak leaves the barrel rather than the middle of the player.</summary>
+        const float k_MuzzleReach = 0.78f;
 
         readonly Vector2[] m_PredictedPositions = new Vector2[k_HistorySize];
         readonly uint[] m_PredictedTicks = new uint[k_HistorySize];
@@ -128,14 +130,12 @@ namespace MiniBrawl.Networking.Replication
         Collider2D m_Collider;
         PlayerVisual m_Visual;
         PlayerSfx m_Sfx;
-        LineRenderer m_AimLine;
         Color m_BaseColor;
 
         PlayerState m_State;
         WeaponState m_Weapon;
         PlayerInput m_LastInput;
         Vector2 m_SpawnPoint;
-        float m_TracerRemaining;
 
         /// <summary>
         /// Ticks of silence before a player counts as absent. Roughly a second — long enough that
@@ -209,7 +209,6 @@ namespace MiniBrawl.Networking.Replication
         public override void OnStartClient()
         {
             base.OnStartClient();
-            m_AimLine = BuildAimLine();
             TryClaimSlot();
         }
 
@@ -230,11 +229,6 @@ namespace MiniBrawl.Networking.Replication
             if (Session.NetworkBootstrap.Autopilot) director.SetReady(PlayerIdentity.Id, true);
 
             m_SlotClaimed = true;
-        }
-
-        void OnDestroy()
-        {
-            if (m_AimLine != null) Destroy(m_AimLine.gameObject);
         }
 
         protected override void TimeManager_OnTick() => PerformReplicate(BuildMoveData());
@@ -314,7 +308,6 @@ namespace MiniBrawl.Networking.Replication
             // a reconcile of ten ticks would spray ten bursts from one trigger pull.
             if (state.ContainsTicked())
             {
-                m_TracerRemaining = k_TracerDuration;
                 PlayShotEffects(direction, hit);
             }
 
@@ -377,10 +370,14 @@ namespace MiniBrawl.Networking.Replication
         /// </summary>
         void PlayShotEffects(Vector2 direction, HitscanHit hit)
         {
+            // One muzzle position for every effect. The sparks used to use their own 0.5-unit
+            // guess from the body centre, which stopped being the barrel when the commando was
+            // redrawn — effects that share an origin should share the constant.
+            Vector2 muzzle = m_State.Position + direction * k_MuzzleReach;
+
             HitSparks sparks = HitSparks.Instance;
             if (sparks != null)
             {
-                Vector2 muzzle = m_State.Position + direction * 0.5f;
                 sparks.Burst(muzzle, direction, new Color(1f, 0.85f, 0.4f), count: 2);
 
                 if (hit.Hit)
@@ -388,6 +385,11 @@ namespace MiniBrawl.Networking.Replication
             }
 
             if (m_Visual != null) m_Visual.FlashMuzzle();
+
+            // A streak from the barrel to wherever the shot ended, rather than a line down the
+            // whole firing solution.
+            Vector2 end = hit.Hit ? hit.Point : muzzle + direction * m_WeaponConfig.Range;
+            BulletTracers.Instance?.Fire(muzzle, end, k_TracerColor);
 
             // Only the shooter feels the recoil, and only lightly — this fires five times a second.
             if (IsOwner) ScreenShake.Instance?.Shake(0.045f);
@@ -461,43 +463,6 @@ namespace MiniBrawl.Networking.Replication
 
             if (m_Sfx != null) m_Sfx.IsLocal = IsOwner;
             if (m_Collider != null) m_Collider.enabled = !dead;
-
-            if (m_AimLine == null) return;
-            m_AimLine.enabled = !dead;
-            if (dead) return;
-
-            Vector2 origin = m_State.Position;
-            Vector2 direction = m_LastInput.AimDirection;
-            HitscanHit hit = m_Hitscan.Raycast(origin, direction, m_WeaponConfig.Range, m_Collider);
-
-            m_AimLine.SetPosition(0, origin);
-            m_AimLine.SetPosition(1, origin + direction * hit.Distance);
-
-            bool firing = m_TracerRemaining > 0f;
-            if (firing) m_TracerRemaining -= Time.deltaTime;
-
-            m_AimLine.startColor = m_AimLine.endColor = firing ? k_TracerColor : k_AimColor;
-            m_AimLine.widthMultiplier = firing ? 0.14f : 0.05f;
-        }
-
-        /// <summary>Unparented: as a child it would inherit the player's non-uniform scale.</summary>
-        LineRenderer BuildAimLine()
-        {
-            var line = new GameObject($"AimLine_{OwnerId}").AddComponent<LineRenderer>();
-            line.useWorldSpace = true;
-            line.positionCount = 2;
-            line.widthMultiplier = 0.05f;
-            line.numCapVertices = 0;
-            line.alignment = LineAlignment.View;
-            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            line.receiveShadows = false;
-            line.sortingOrder = 20;
-            // Borrowed from the body sprite: an unlit material that is guaranteed to be in the
-            // build, without an editor-only lookup.
-            line.sharedMaterial = m_Visual != null && m_Visual.Body != null
-                ? m_Visual.Body.sharedMaterial
-                : null;
-            return line;
         }
     }
 }

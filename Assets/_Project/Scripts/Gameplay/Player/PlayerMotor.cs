@@ -8,7 +8,11 @@ namespace MiniBrawl.Gameplay.Player
     /// </summary>
     public static class PlayerMotor
     {
-        public static readonly Vector2 Size = new Vector2(0.6f, 0.9f);
+        /* Height raised from 0.9 so the commando is legible on a phone: the arena is 26 units
+         * across, which left a 0.9-unit character about eight percent of the screen. Width is
+         * unchanged, so every horizontal gap in the level behaves exactly as it did, and the
+         * tallest change in clearance is still well inside the 2-unit platform gaps. */
+        public static readonly Vector2 Size = new Vector2(0.6f, 1.2f);
         const float Skin = 0.02f;
 
         public static PlayerState Simulate(in PlayerState prev, in PlayerInput input,

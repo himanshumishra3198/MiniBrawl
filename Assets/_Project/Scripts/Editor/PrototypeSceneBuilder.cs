@@ -96,6 +96,11 @@ public static class PrototypeSceneBuilder
 
         var sfx = go.AddComponent<Sfx>();
         sfx.Banks = GameAssets.Banks();
+
+        // A plain white square, stretched along the shot: a soft round particle smears into a
+        // blur at this speed instead of reading as a bullet.
+        var tracers = go.AddComponent<BulletTracers>();
+        tracers.Sprite = square;
     }
 
     /// <summary>
@@ -128,10 +133,10 @@ public static class PrototypeSceneBuilder
 
         /* A child of the arm, so it follows the barrel around without anyone having to recompute
          * where the barrel is. Turned a quarter circle because the sprite points up and the barrel
-         * points along +x, and placed at the muzzle: 0.57 units past the shoulder pivot, measured
+         * points along +x, and placed at the muzzle: 0.745 units past the shoulder pivot, measured
          * off the rifle in tools/commando.py. */
         visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
-        visual.Muzzle.transform.localPosition = new Vector3(0.57f, 0.01f, 0f);
+        visual.Muzzle.transform.localPosition = new Vector3(0.745f, 0.01f, 0f);
         visual.Muzzle.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
         visual.Muzzle.enabled = false;
 

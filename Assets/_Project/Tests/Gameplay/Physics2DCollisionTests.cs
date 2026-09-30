@@ -13,6 +13,17 @@ namespace MiniBrawl.Gameplay.Tests
         const int k_LevelLayer = 8;      // "Level", created by PrototypeSceneBuilder
         const int k_OtherLayer = 9;
 
+        /// <summary>The floor's top surface, from the transform set up below.</summary>
+        const float k_FloorSurface = -1.5f;
+
+        /// <summary>
+        /// Derived from PlayerMotor.Size rather than written out. These expectations were
+        /// hard-coded to a half-height of 0.45 and broke the moment the character was made taller,
+        /// which told us nothing except that a number had been copied — the motor was right both
+        /// times.
+        /// </summary>
+        static float HalfHeight => PlayerMotor.Size.y * 0.5f;
+
         GameObject m_Floor;
 
         [SetUp]
@@ -36,8 +47,9 @@ namespace MiniBrawl.Gameplay.Tests
             bool hit = probe.Cast(Vector2.zero, PlayerMotor.Size, Vector2.down, 5f, out float distance);
 
             Assert.IsTrue(hit, "a box cast straight down should find the floor");
-            // Box half-height 0.45 from origin y=0, floor surface at y=-1.5.
-            Assert.AreEqual(1.05f, distance, 0.01f);
+            // From origin y=0 the box's underside meets the surface after falling the gap
+            // less its own half-height.
+            Assert.AreEqual(-k_FloorSurface - HalfHeight, distance, 0.01f);
         }
 
         [Test]
@@ -70,8 +82,8 @@ namespace MiniBrawl.Gameplay.Tests
                 state = PlayerMotor.Simulate(state, default, MotorConfig.Default, probe, 1f / 30f);
 
             Assert.IsTrue(state.Grounded, "the player should be resting on the floor");
-            // Floor surface -1.5 plus the box's 0.45 half-height, within the motor's skin width.
-            Assert.AreEqual(-1.05f, state.Position.y, 0.05f);
+            // The centre rests one half-height above the surface, within the motor's skin width.
+            Assert.AreEqual(k_FloorSurface + HalfHeight, state.Position.y, 0.05f);
             Assert.AreEqual(0f, state.Velocity.y, 0.01f);
         }
     }

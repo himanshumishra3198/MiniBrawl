@@ -25,7 +25,7 @@ jobs = []
 # Six seats, five poses each, plus one arm-and-rifle per seat. The weapon is
 # per-seat rather than shared because the firing arm wears the uniform colour.
 for i in range(6):
-    for pose in ['stand', 'walk1', 'walk2', 'jump', 'hurt']:
+    for pose in ['stand', 'jump', 'hurt', 'walk1', 'walk2', 'walk3', 'walk4']:
         jobs.append((f'{GEN}/Characters/player{i}_{pose}.png', f'Art/Characters/player{i}_{pose}.png'))
     jobs.append((f'{GEN}/Weapons/arm{i}.png', f'Art/Weapons/arm{i}.png'))
 

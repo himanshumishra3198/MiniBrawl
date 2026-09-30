@@ -103,7 +103,10 @@ public static class SceneSnapshot
         {
             if (visual.Skins.Length > 0 && visual.Body != null)
             {
-                visual.Body.sprite = visual.Skins[0].Walk1;
+                PlayerVisual.Skin skin = visual.Skins[0];
+                visual.Body.sprite = skin.Walk != null && skin.Walk.Length > 0
+                    ? skin.Walk[0]
+                    : skin.Stand;
                 visual.Body.transform.localPosition = new Vector3(0f, -PlayerMotor.Size.y * 0.5f, 0f);
             }
 

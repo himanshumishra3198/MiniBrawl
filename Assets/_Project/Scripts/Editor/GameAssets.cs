@@ -19,11 +19,11 @@ public static class GameAssets
     static readonly Vector2 k_Feet = new Vector2(0.5f, 0f);
 
     /// <summary>
-    /// The shoulder, measured off the drawing in tools/commando.py: pixel (14, 15) of a 78x30
+    /// The shoulder, measured off the drawing in tools/commando.py: pixel (18, 20) of a 102x40
     /// sprite, normalised. The arm turns a full circle with the aim stick, and a pivot anywhere
     /// else makes the whole weapon orbit the body instead of swinging from it.
     /// </summary>
-    static readonly Vector2 k_Shoulder = new Vector2(14f / 78f, 0.5f);
+    static readonly Vector2 k_Shoulder = new Vector2(18f / 102f, 0.5f);
 
     public static Sprite Character(int seat, string pose) =>
         ArtImport.Sprite($"{k_Art}/Characters/player{seat}_{pose}.png", ArtImport.CharacterPPU, k_Feet);
@@ -64,14 +64,21 @@ public static class GameAssets
             skins[seat] = new PlayerVisual.Skin
             {
                 Stand = Character(seat, "stand"),
-                Walk1 = Character(seat, "walk1"),
-                Walk2 = Character(seat, "walk2"),
+                Walk  = WalkCycle(seat),
                 Jump  = Character(seat, "jump"),
                 Hurt  = Character(seat, "hurt"),
                 Arm   = Arm(seat),
             };
         }
         return skins;
+    }
+
+    /// <summary>The walk frames in cycle order. Four, matching tools/commando.py.</summary>
+    static Sprite[] WalkCycle(int seat)
+    {
+        var frames = new Sprite[4];
+        for (int i = 0; i < frames.Length; i++) frames[i] = Character(seat, $"walk{i + 1}");
+        return frames;
     }
 
     public static AudioClip Sound(string name, bool longLoop = false) =>

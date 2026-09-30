@@ -90,10 +90,10 @@ TextureImporter:
       name: player0_walk1_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 7
         y: 0
-        width: 68
-        height: 93
+        width: 47
+        height: 119
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

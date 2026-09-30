@@ -26,8 +26,11 @@ namespace MiniBrawl.Gameplay.VFX
         public struct Skin
         {
             public Sprite Stand;
-            public Sprite Walk1;
-            public Sprite Walk2;
+
+            /// <summary>The walk cycle, in order. Two frames read as a shuffle however far apart
+            /// the legs are, because a walk passes through positions two frames cannot express.</summary>
+            public Sprite[] Walk;
+
             public Sprite Jump;
             public Sprite Hurt;
             public Sprite Arm;
@@ -43,7 +46,7 @@ namespace MiniBrawl.Gameplay.VFX
 
         [Tooltip("World distance per walk frame. Tied to distance, not time, so the legs keep pace " +
                  "with the body instead of sliding when movement speed changes.")]
-        public float Stride = 0.42f;
+        public float Stride = 0.34f;
 
         public float MuzzleFlashSeconds = 0.05f;
 
@@ -64,15 +67,15 @@ namespace MiniBrawl.Gameplay.VFX
         float m_MuzzleRemaining;
 
         /// <summary>
-        /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 92px
+        /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 120px
         /// tall at 100 pixels per unit with its feet on the bottom edge, and the shoulder sits
-        /// 51px up from there, against a body whose feet are at -Size.y/2.
+        /// 80px up from there, against a body whose feet are at -Size.y/2.
         ///
         /// It is on the centre line on purpose. The real shoulder is a pixel forward of centre,
         /// but the body mirrors when aiming left and an off-centre anchor would make the weapon
         /// jump sideways as the player turned.
         /// </summary>
-        static readonly Vector3 k_GunAnchor = new Vector3(0f, 0.06f, 0f);
+        static readonly Vector3 k_GunAnchor = new Vector3(0f, 0.20f, 0f);
 
         void Awake()
         {
@@ -124,8 +127,8 @@ namespace MiniBrawl.Gameplay.VFX
                 pose = skin.Hurt;
             else if (!state.Grounded)
                 pose = skin.Jump;
-            else if (Mathf.Abs(state.Velocity.x) > 0.15f)
-                pose = Mathf.FloorToInt(m_WalkPhase / Stride) % 2 == 0 ? skin.Walk1 : skin.Walk2;
+            else if (Mathf.Abs(state.Velocity.x) > 0.15f && skin.Walk != null && skin.Walk.Length > 0)
+                pose = skin.Walk[Mathf.Abs(Mathf.FloorToInt(m_WalkPhase / Stride)) % skin.Walk.Length];
             else
                 pose = skin.Stand;
 
