@@ -60,7 +60,17 @@ namespace MiniBrawl.Networking.Session
 
             if (m_Manager == null)
             {
-                Readout.text = "no NetworkManager";
+                /* Hidden rather than merely blanked: a player who has turned this off should not be
+             * paying to format a string of telemetry every frame. */
+            if (!Core.GameSettings.ShowDebugOverlay)
+            {
+                if (Readout.enabled) Readout.enabled = false;
+                return;
+            }
+
+            if (!Readout.enabled) Readout.enabled = true;
+
+            Readout.text = "no NetworkManager";
                 return;
             }
 

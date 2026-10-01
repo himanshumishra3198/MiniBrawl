@@ -113,7 +113,11 @@ namespace MiniBrawl.Gameplay.Audio
             m_Next = (m_Next + 1) % m_Voices.Length;
 
             source.clip = clip;
-            source.volume = Mathf.Clamp01(bank.Volume * volume * MasterVolume);
+
+            /* The player's effects slider multiplies the mix rather than replacing it, so turning
+             * the game down keeps a gunshot quieter than a death rather than flattening both. */
+            source.volume = Mathf.Clamp01(bank.Volume * volume * MasterVolume
+                                          * Core.GameSettings.SfxVolume);
             source.pitch = 1f + UnityEngine.Random.Range(-bank.PitchJitter, bank.PitchJitter);
             source.Play();
         }

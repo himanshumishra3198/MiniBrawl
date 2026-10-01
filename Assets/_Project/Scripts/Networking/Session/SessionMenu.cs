@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using FishNet;
 using FishNet.Managing;
 using MiniBrawl.Config;
+using MiniBrawl.Core;
 using MiniBrawl.Networking.Discovery;
 using MiniBrawl.Networking.Identity;
 using MiniBrawl.Platform;
@@ -29,6 +30,10 @@ namespace MiniBrawl.Networking.Session
 
         GameObject m_Panel;
         Text m_Status;
+        GameObject m_Settings;
+        Text m_VolumeLabel;
+        Text m_EffectsLabel;
+        Text m_DebugLabel;
         Text m_DeviceLabel;
         Text m_RoomsHeader;
         InputField m_AddressField;
@@ -180,7 +185,89 @@ namespace MiniBrawl.Networking.Session
 
             m_DeviceLabel = Label(panel, "this device: …", 30, new Vector2(0f, -440f), new Vector2(1200f, 50f));
             m_Status = Label(panel, "", 26, new Vector2(0f, -490f), new Vector2(1400f, 50f));
+
+            Button(panel, "SETTINGS", new Vector2(560f, 300f), new Vector2(560f, 110f),
+                () => ShowSettings(true));
+
+            BuildSettings(canvasGo.transform);
         }
+
+        /// <summary>
+        /// Volume and the developer readout, over the menu.
+        ///
+        /// Stepped buttons rather than sliders. A slider on a phone is a small target that wants a
+        /// precise drag, and nobody needs to set the volume to 43 percent — five steps covers the
+        /// decision anyone is actually making, including off.
+        /// </summary>
+        void BuildSettings(Transform canvas)
+        {
+            m_Settings = Panel(canvas);
+            m_Settings.GetComponent<Image>().color = new Color(0.04f, 0.05f, 0.08f, 0.985f);
+            Transform panel = m_Settings.transform;
+
+            Label(panel, "SETTINGS", 56, new Vector2(0f, 360f), new Vector2(900f, 76f));
+
+            Label(panel, "volume", 32, new Vector2(-380f, 180f), new Vector2(420f, 44f));
+            Button(panel, "–", new Vector2(60f, 180f), new Vector2(110f, 90f),
+                () => StepVolume(false));
+            m_VolumeLabel = Label(panel, "", 36, new Vector2(230f, 180f), new Vector2(220f, 50f));
+            Button(panel, "+", new Vector2(400f, 180f), new Vector2(110f, 90f),
+                () => StepVolume(true));
+
+            Label(panel, "effects", 32, new Vector2(-380f, 60f), new Vector2(420f, 44f));
+            Button(panel, "–", new Vector2(60f, 60f), new Vector2(110f, 90f),
+                () => StepEffects(false));
+            m_EffectsLabel = Label(panel, "", 36, new Vector2(230f, 60f), new Vector2(220f, 50f));
+            Button(panel, "+", new Vector2(400f, 60f), new Vector2(110f, 90f),
+                () => StepEffects(true));
+
+            Label(panel, "developer readout", 32, new Vector2(-330f, -60f), new Vector2(540f, 44f));
+            m_DebugLabel = Label(panel, "", 36, new Vector2(300f, -60f), new Vector2(380f, 50f));
+            Button(panel, "TOGGLE", new Vector2(300f, -150f), new Vector2(380f, 90f), ToggleDebug);
+
+            Button(panel, "BACK", new Vector2(0f, -340f), new Vector2(460f, 110f),
+                () => ShowSettings(false));
+
+            m_Settings.SetActive(false);
+            RefreshSettings();
+        }
+
+        void ShowSettings(bool open)
+        {
+            if (m_Settings == null) return;
+            m_Settings.SetActive(open);
+            if (open) RefreshSettings();
+        }
+
+        void StepVolume(bool up) =>
+            Nudge(v => GameSettings.MasterVolume = v, GameSettings.MasterVolume, up);
+
+        void StepEffects(bool up) =>
+            Nudge(v => GameSettings.SfxVolume = v, GameSettings.SfxVolume, up);
+
+        /// <summary>Moves a 0-1 setting by a fifth, clamped. Five steps including silence.</summary>
+        static void Nudge(System.Action<float> set, float current, bool up)
+        {
+            set(Mathf.Clamp01(Mathf.Round((current + (up ? 0.25f : -0.25f)) * 4f) / 4f));
+        }
+
+        void ToggleDebug()
+        {
+            GameSettings.ShowDebugOverlay = !GameSettings.ShowDebugOverlay;
+            RefreshSettings();
+        }
+
+        void RefreshSettings()
+        {
+            if (m_VolumeLabel != null)
+                m_VolumeLabel.text = Percent(GameSettings.MasterVolume);
+            if (m_EffectsLabel != null)
+                m_EffectsLabel.text = Percent(GameSettings.SfxVolume);
+            if (m_DebugLabel != null)
+                m_DebugLabel.text = GameSettings.ShowDebugOverlay ? "ON" : "OFF";
+        }
+
+        static string Percent(float value) => value <= 0f ? "OFF" : $"{Mathf.RoundToInt(value * 100f)}%";
 
         static GameObject Panel(Transform parent)
         {
