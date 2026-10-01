@@ -77,13 +77,12 @@ namespace MiniBrawl.Gameplay.Tests
         [Test]
         public void WeaponSim_Step_DoesNotAllocate()
         {
-            var weapon = new WeaponState();
-            var config = WeaponConfig.Default;
+            WeaponState weapon = WeaponState.Starting;
 
             AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
-                    WeaponSim.Step(ref weapon, config, true, 1f / 30f);
+                    WeaponSim.Step(ref weapon, true, 1f / 30f);
             });
         }
 

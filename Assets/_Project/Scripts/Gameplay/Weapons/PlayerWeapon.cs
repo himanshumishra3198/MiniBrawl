@@ -44,7 +44,7 @@ namespace MiniBrawl.Gameplay.Weapons
 
         void OnTick(PlayerInput input, float dt)
         {
-            if (!WeaponSim.Step(ref m_State, m_Config, input.Fire, dt)) return;
+            if (!WeaponSim.Step(ref m_State, input.Fire, dt)) return;
 
             var hit = Trace(input.AimDirection);
             if (hit.Hit && hit.Collider != null && hit.Collider.TryGetComponent(out Damageable target))

@@ -28,6 +28,7 @@ public static class NetworkSceneBuilder
     const string k_ScenePath  = "Assets/_Project/Scenes/20_Network.unity";
     const string k_PrefabPath = "Assets/_Project/Prefabs/Player/NetworkPlayer.prefab";
     const string k_DirectorPrefabPath = "Assets/_Project/Prefabs/Network/MatchDirector.prefab";
+    const string k_PickupPrefabPath = "Assets/_Project/Prefabs/Network/Pickup.prefab";
     const string k_PrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
 
     [MenuItem("MiniBrawl/Build Network Scene")]
@@ -39,13 +40,14 @@ public static class NetworkSceneBuilder
 
         NetworkObject prefab = BuildPlayerPrefab(square, levelLayer, hittableLayer);
         NetworkObject director = BuildMatchDirectorPrefab();
+        NetworkObject pickup = BuildPickupPrefab(square);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         PrototypeSceneBuilder.BuildCamera();
         PrototypeSceneBuilder.BuildEffects(square);
         PrototypeSceneBuilder.BuildLevel(square, levelLayer);
-        BuildNetworkManager(prefab, director);
+        BuildNetworkManager(prefab, director, pickup);
         BuildHud(square);
 
         Directory.CreateDirectory(Path.GetDirectoryName(k_ScenePath));
@@ -121,7 +123,8 @@ public static class NetworkSceneBuilder
         EditorUtility.SetDirty(collection);
     }
 
-    static void BuildNetworkManager(NetworkObject playerPrefab, NetworkObject directorPrefab)
+    static void BuildNetworkManager(NetworkObject playerPrefab, NetworkObject directorPrefab,
+                                    NetworkObject pickupPrefab)
     {
         var go = new GameObject("NetworkManager", typeof(NetworkManager), typeof(Tugboat));
 
@@ -142,6 +145,22 @@ public static class NetworkSceneBuilder
         go.AddComponent<SessionRecovery>();
         go.AddComponent<SessionMenu>();
         go.AddComponent<NetworkTelemetry>();
+
+        /* Crates can appear on any of these: the floor, the ledges and the upper platforms.
+         * Deliberately more points than crates, so a taken crate comes back somewhere new. */
+        var pickups = go.AddComponent<PickupSpawner>();
+        pickups.PickupPrefab = pickupPrefab;
+        pickups.Points = new[]
+        {
+            new Vector2(-18f, -9.7f), new Vector2(-6f, -9.7f),
+            new Vector2(6f, -9.7f),   new Vector2(18f, -9.7f),
+            new Vector2(-14f, -5.4f), new Vector2(14f, -5.4f),
+            new Vector2(0f, -2.9f),
+            new Vector2(-8f, 0.6f),   new Vector2(8f, 0.6f),
+            new Vector2(-16f, 5.1f),  new Vector2(16f, 5.1f),
+            new Vector2(0f, 4.6f),
+            new Vector2(-7f, 8.6f),   new Vector2(7f, 8.6f),
+        };
 
         var spawner = go.AddComponent<PlayerSpawner>();
         spawner.PlayerPrefab = playerPrefab;
@@ -171,6 +190,44 @@ public static class NetworkSceneBuilder
         Object.DestroyImmediate(go);
 
         var prefab = saved.GetComponent<NetworkObject>();
+        RegisterPrefab(prefab);
+        return prefab;
+    }
+
+    /// <summary>
+    /// A crate. Server-spawned rather than placed in the scene, for the same reason as the match
+    /// director: FishNet gives script-created scene objects a SceneId of 0 and never spawns them.
+    /// </summary>
+    static NetworkObject BuildPickupPrefab(Sprite square)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(k_PickupPrefabPath));
+
+        var go = new GameObject("Pickup", typeof(NetworkObject), typeof(Pickup));
+
+        var body = new GameObject("Body");
+        body.transform.SetParent(go.transform, false);
+        body.transform.localScale = new Vector3(0.75f, 0.75f, 1f);
+        var bodyRenderer = body.AddComponent<SpriteRenderer>();
+        bodyRenderer.sprite = square;
+        bodyRenderer.sortingOrder = 6;
+
+        // A smaller square inset in the crate. Colour carries which kind it is, so the icon only
+        // has to say "this is a crate, not scenery".
+        var icon = new GameObject("Icon");
+        icon.transform.SetParent(go.transform, false);
+        icon.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
+        var iconRenderer = icon.AddComponent<SpriteRenderer>();
+        iconRenderer.sprite = square;
+        iconRenderer.sortingOrder = 7;
+
+        var pickup = go.GetComponent<Pickup>();
+        pickup.Body = bodyRenderer;
+        pickup.Icon = iconRenderer;
+
+        GameObject saved = PrefabUtility.SaveAsPrefabAsset(go, k_PickupPrefabPath);
+        Object.DestroyImmediate(go);
+
+        NetworkObject prefab = saved.GetComponent<NetworkObject>();
         RegisterPrefab(prefab);
         return prefab;
     }

@@ -11,8 +11,9 @@ namespace MiniBrawl.Config
         /// collection: FishNet spawns by index, so adding a prefab renumbers the existing ones and
         /// an older build spawns the wrong object or none at all. Version 1 -> 2 was exactly that,
         /// and it was missed, so two builds declared themselves compatible and failed to play.
+        /// Version 2 -> 3 is the pickup crate joining the collection, for the same reason.
         /// </summary>
-        public const ushort ProtocolVersion = 2;
+        public const ushort ProtocolVersion = 3;
 
         public const int SimulationTickRate = 30;   // §5.2 — 30 Hz, mobile thermal budget
         public const int SnapshotSendRate   = 20;

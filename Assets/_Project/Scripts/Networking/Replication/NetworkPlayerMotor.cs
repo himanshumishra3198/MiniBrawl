@@ -61,6 +61,13 @@ namespace MiniBrawl.Networking.Replication
             public float Fuel;
             public float RespawnIn;
             public float WeaponCooldown;
+
+            /* The weapon travels in the reconcile with everything else. Without it a replay would
+             * re-fire past ticks using whatever is held now — pick up a shotgun and the last ten
+             * ticks of rifle fire would be replayed as buckshot. */
+            public byte WeaponKind;
+            public int WeaponAmmo;
+
             public byte Health;
             public bool Grounded;
 
@@ -78,9 +85,20 @@ namespace MiniBrawl.Networking.Replication
                 Health = state.Health;
                 Grounded = state.Grounded;
                 WeaponCooldown = weapon.Cooldown;
+                WeaponKind = (byte)weapon.Kind;
+                WeaponAmmo = weapon.Ammo;
                 Absent = false;
                 _tick = 0;
             }
+
+            public WeaponState ToWeapon() => new WeaponState
+            {
+                Cooldown = WeaponCooldown,
+                // Fully qualified: the field below is also called WeaponKind, and inside this
+                // struct the field name wins over the type name.
+                Kind = (MiniBrawl.Gameplay.Weapons.WeaponKind)WeaponKind,
+                Ammo = WeaponAmmo,
+            };
 
             public PlayerState ToState() => new PlayerState
             {
@@ -107,7 +125,6 @@ namespace MiniBrawl.Networking.Replication
         public float RespawnDelay = 3f;
 
         [SerializeField] MotorConfig m_Config = MotorConfig.Default;
-        [SerializeField] WeaponConfig m_WeaponConfig = WeaponConfig.Default;
 
         /// <summary>Below this, a correction is float noise rather than a real misprediction.</summary>
         const float k_CorrectionThreshold = 0.01f;
@@ -134,7 +151,7 @@ namespace MiniBrawl.Networking.Replication
         Color m_BaseColor;
 
         PlayerState m_State;
-        WeaponState m_Weapon;
+        WeaponState m_Weapon = WeaponState.Starting;
         PlayerInput m_LastInput;
         Vector2 m_SpawnPoint;
 
@@ -157,7 +174,16 @@ namespace MiniBrawl.Networking.Replication
         float m_LastError;
         float m_MaxError;
 
+        static readonly System.Collections.Generic.List<NetworkPlayerMotor> s_All = new();
+
+        /// <summary>Every motor currently in the scene, living or dead. Kept as a registry so
+        /// anything that needs all the players each frame does not have to go and find them.</summary>
+        public static System.Collections.Generic.IReadOnlyList<NetworkPlayerMotor> All => s_All;
+
         public PlayerState State => m_State;
+
+        /// <summary>What this player is carrying, for the HUD.</summary>
+        public WeaponState Weapon => m_Weapon;
         public PlayerInput LastInput => m_LastInput;
 
         /// <summary>Hidden because input stopped arriving. Exposed so telemetry can catch false positives.</summary>
@@ -186,7 +212,6 @@ namespace MiniBrawl.Networking.Replication
         {
             base.Reset();
             m_Config = MotorConfig.Default;
-            m_WeaponConfig = WeaponConfig.Default;
         }
 
         void Awake()
@@ -204,8 +229,34 @@ namespace MiniBrawl.Networking.Replication
 
             m_SpawnPoint = transform.position;
             m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
+            s_All.Add(this);
 
             SetTickCallbacks(TickCallback.Tick | TickCallback.PostTick);
+        }
+
+        void OnDestroy() => s_All.Remove(this);
+
+        /// <summary>
+        /// Server-only. Applies a crate and reports whether it was worth taking, so a crate is
+        /// not consumed by somebody who gains nothing from it.
+        /// </summary>
+        public bool TryTakePickup(Match.PickupKind kind, int heal)
+        {
+            if (!IsServerStarted || m_State.IsDead || m_Absent) return false;
+
+            if (kind == Match.PickupKind.Health)
+            {
+                if (m_State.Health >= 100) return false;    // walking over it at full health leaves it
+                m_State.Health = (byte)Mathf.Min(100, m_State.Health + heal);
+                return true;
+            }
+
+            /* Weapon crates are always taken, even by somebody already carrying that weapon —
+             * picking one up again refills it, and the crate is gone for fourteen seconds either
+             * way, so this cannot be farmed. */
+            WeaponSim.Equip(ref m_Weapon,
+                kind == Match.PickupKind.Shotgun ? WeaponKind.Shotgun : WeaponKind.Pistol);
+            return true;
         }
 
         public override void OnStartClient()
@@ -284,12 +335,17 @@ namespace MiniBrawl.Networking.Replication
             m_State = PlayerMotor.Simulate(m_State, m_LastInput, m_Config, m_World, delta);
             transform.position = m_State.Position;
 
-            // The server decides when the body comes back; clients find out by reconciliation.
+            /* The server decides when the body comes back; clients find out by reconciliation.
+             * The weapon resets with it: carrying a shotgun through death would let whoever is
+             * already winning keep the thing that is helping them win. */
             if (IsServerStarted && m_State.IsDead && m_State.RespawnIn <= 0f)
+            {
                 m_State = PlayerState.Spawn(m_SpawnPoint, m_Config.FuelMax);
+                m_Weapon = WeaponState.Starting;
+            }
 
-            if (!m_State.IsDead && WeaponSim.Step(ref m_Weapon, m_WeaponConfig, m_LastInput.Fire, delta))
-                FireShot(m_LastInput.AimDirection, state);
+            if (!m_State.IsDead && WeaponSim.Step(ref m_Weapon, m_LastInput.Fire, delta))
+                FireShot(m_LastInput.AimDirection, state, md.GetTick());
 
             // Record what we predicted for this tick, but only on the live tick — during a replay
             // this same method re-runs past ticks, and those are corrections, not predictions.
@@ -302,31 +358,37 @@ namespace MiniBrawl.Networking.Replication
             }
         }
 
-        void FireShot(Vector2 direction, ReplicateState state)
+        void FireShot(Vector2 direction, ReplicateState state, uint tick)
         {
-            HitscanHit hit = m_Hitscan.Raycast(m_State.Position, direction, m_WeaponConfig.Range, m_Collider);
+            WeaponConfig config = m_Weapon.Config;
+            int pellets = Mathf.Max(1, config.Pellets);
 
-            // Only the live tick should show effects; a replay would fire the same shot again and
-            // a reconcile of ten ticks would spray ten bursts from one trigger pull.
-            if (state.ContainsTicked())
+            for (int i = 0; i < pellets; i++)
             {
-                PlayShotEffects(direction, hit);
-            }
+                // Scatter hashed from the tick, so the client's predicted spread and the server's
+                // authoritative one are the same cone.
+                Vector2 heading = WeaponSim.Pellet(direction, i, tick, config);
+                HitscanHit hit = m_Hitscan.Raycast(m_State.Position, heading, config.Range, m_Collider);
 
-            /* §5.3: the host decides damage. Clients run this same code for the visuals but never
-             * apply it, so a modified client can draw whatever it likes and still hit nothing. */
-            if (!IsServerStarted || !hit.Hit || hit.Collider == null) return;
+                // Only the live tick should show effects; a replay would fire the same shot again
+                // and a reconcile of ten ticks would spray ten bursts from one trigger pull.
+                if (state.ContainsTicked()) PlayShotEffects(heading, hit, i == 0);
 
-            if (hit.Collider.TryGetComponent(out NetworkPlayerMotor victim) && victim != this)
-            {
-                if (victim.m_State.IsDead || victim.m_Absent) return;   // no corpses, no absentees
-                victim.ApplyDamage(m_WeaponConfig.Damage, OwnerId);
-                Hits++;
-            }
-            else if (hit.Collider.TryGetComponent(out Damageable target))
-            {
-                target.TakeDamage(m_WeaponConfig.Damage);
-                Hits++;
+                /* §5.3: the host decides damage. Clients run this same code for the visuals but
+                 * never apply it, so a modified client can draw whatever it likes and hit nothing. */
+                if (!IsServerStarted || !hit.Hit || hit.Collider == null) continue;
+
+                if (hit.Collider.TryGetComponent(out NetworkPlayerMotor victim) && victim != this)
+                {
+                    if (victim.m_State.IsDead || victim.m_Absent) continue;   // no corpses, no absentees
+                    victim.ApplyDamage(config.Damage, OwnerId);
+                    Hits++;
+                }
+                else if (hit.Collider.TryGetComponent(out Damageable target))
+                {
+                    target.TakeDamage(config.Damage);
+                    Hits++;
+                }
             }
         }
 
@@ -370,7 +432,7 @@ namespace MiniBrawl.Networking.Replication
         /// Muzzle flash, impact sparks, and a nudge of the view for the shooter. All local and
         /// visual: every machine runs this same code for the tick, so nothing needs sending.
         /// </summary>
-        void PlayShotEffects(Vector2 direction, HitscanHit hit)
+        void PlayShotEffects(Vector2 direction, HitscanHit hit, bool firstPellet)
         {
             /* One muzzle position for every effect, taken from the drawn weapon rather than
              * guessed at. The sparks and the tracer each had their own constant, and both went
@@ -388,19 +450,21 @@ namespace MiniBrawl.Networking.Replication
                     sparks.Burst(hit.Point, -direction, new Color(1f, 0.75f, 0.35f), count: 5);
             }
 
-            if (m_Visual != null) m_Visual.FlashMuzzle();
+            // A shotgun fires six of these at once; the flash, the bang and the recoil belong to
+            // the trigger pull, not to each pellet.
+            if (firstPellet && m_Visual != null) m_Visual.FlashMuzzle();
 
             // A streak from the barrel to wherever the shot ended, rather than a line down the
             // whole firing solution.
-            Vector2 end = hit.Hit ? hit.Point : muzzle + direction * m_WeaponConfig.Range;
+            Vector2 end = hit.Hit ? hit.Point : muzzle + direction * m_Weapon.Config.Range;
             BulletTracers.Instance?.Fire(muzzle, end, k_TracerColor);
 
             /* No shake on firing. It fires five times a second, so even a light nudge is a view
              * that never settles while a trigger is held — and it competes with the shake that
              * means something, which is being hit. That one stays. */
 
-            Sfx.PlayGlobal(SfxId.Shoot, IsOwner ? 0.75f : 0.28f);
-            if (hit.Hit) Sfx.PlayGlobal(SfxId.HitWall, IsOwner ? 0.45f : 0.18f);
+            if (firstPellet) Sfx.PlayGlobal(SfxId.Shoot, IsOwner ? 0.75f : 0.28f);
+            if (hit.Hit && firstPellet) Sfx.PlayGlobal(SfxId.HitWall, IsOwner ? 0.45f : 0.18f);
         }
 
         /// <summary>Server-only. Health is part of the reconciled state, so clients learn of it there.</summary>
@@ -447,7 +511,7 @@ namespace MiniBrawl.Networking.Replication
             }
 
             m_State = rd.ToState();
-            m_Weapon.Cooldown = rd.WeaponCooldown;
+            m_Weapon = rd.ToWeapon();
             m_Absent = rd.Absent;
             transform.position = m_State.Position;
         }

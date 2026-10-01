@@ -806,10 +806,6 @@ MonoBehaviour:
     FuelMax: 1
     FuelDrainPerSecond: 0.22
     FuelRegenPerSecond: 0.35
-  m_WeaponConfig:
-    FireInterval: 0.2
-    Range: 22
-    Damage: 12
 --- !u!114 &4231299464800473495
 MonoBehaviour:
   m_ObjectHideFlags: 0

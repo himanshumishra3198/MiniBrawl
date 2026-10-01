@@ -84,10 +84,18 @@ namespace MiniBrawl.Networking.Session
                 hosting = $"\nJOIN THIS: {m_LocalIp}:{NetworkConstants.GamePort}";
             }
 
+            // Ammo earns its place here: a pistol that quietly became a rifle when the magazine
+            // ran out is otherwise only noticeable by the damage dropping.
+            string weapon = m_Local == null
+                ? ""
+                : m_Local.Weapon.Ammo < 0
+                    ? $"  {m_Local.Weapon.Kind}"
+                    : $"  {m_Local.Weapon.Kind} x{m_Local.Weapon.Ammo}";
+
             string local = m_Local == null
                 ? "no local player"
                 : $"pos {m_Local.State.Position.x:0.0}, {m_Local.State.Position.y:0.0}  " +
-                  $"fuel {m_Local.State.Fuel * 100f:0}%  " +
+                  $"fuel {m_Local.State.Fuel * 100f:0}%{weapon}  " +
                   $"corrections {m_Local.Corrections}  err {m_Local.LastError:0.000}";
 
             Readout.text =
