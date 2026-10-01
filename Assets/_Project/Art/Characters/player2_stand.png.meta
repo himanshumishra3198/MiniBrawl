@@ -90,9 +90,9 @@ TextureImporter:
       name: player2_stand_0
       rect:
         serializedVersion: 2
-        x: 19
+        x: 18
         y: 0
-        width: 43
+        width: 44
         height: 160
       alignment: 0
       pivot: {x: 0, y: 0}

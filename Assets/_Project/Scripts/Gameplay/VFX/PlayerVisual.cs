@@ -46,7 +46,7 @@ namespace MiniBrawl.Gameplay.VFX
 
         [Tooltip("World distance per walk frame. Tied to distance, not time, so the legs keep pace " +
                  "with the body instead of sliding when movement speed changes.")]
-        public float Stride = 0.34f;
+        public float Stride = 0.19f;
 
         public float MuzzleFlashSeconds = 0.05f;
 
@@ -65,6 +65,8 @@ namespace MiniBrawl.Gameplay.VFX
         IPlayerView m_View;
         float m_WalkPhase;
         float m_MuzzleRemaining;
+        bool m_FacingLeft;
+        bool m_Walking;
 
         /// <summary>
         /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 160px
@@ -118,11 +120,16 @@ namespace MiniBrawl.Gameplay.VFX
                 return;
             }
 
+            /* Facing only flips once the aim is clearly to one side. Flipping on the sign of
+              * aim.x alone meant that aiming anywhere near straight up or down turned the body
+              * over on whichever side of zero the stick landed that frame — which is most of what
+              * "flickering" was. The deadzone is wide enough to cover a thumb holding vertical. */
             Vector2 aim = input.AimDirection;
-            bool facingLeft = aim.x < 0f;
+            if (aim.x > 0.12f) m_FacingLeft = false;
+            else if (aim.x < -0.12f) m_FacingLeft = true;
 
-            DrawBody(state, dt, facingLeft);
-            DrawGun(aim, facingLeft);
+            DrawBody(state, dt, m_FacingLeft);
+            DrawGun(aim, m_FacingLeft);
             DrawJet(state, input, dt);
             DrawMuzzle(dt);
         }
@@ -136,12 +143,19 @@ namespace MiniBrawl.Gameplay.VFX
             // Advance by distance covered rather than by clock, so the stride matches the speed.
             m_WalkPhase += Mathf.Abs(state.Velocity.x) * dt;
 
+            /* Separate thresholds to start and stop walking. A single one chattered between the
+             * stand frame and the walk cycle whenever speed hovered on it, which happens every
+             * time a player eases off the stick or brushes a wall. */
+            float speed = Mathf.Abs(state.Velocity.x);
+            if (speed > 0.35f) m_Walking = true;
+            else if (speed < 0.12f) m_Walking = false;
+
             Sprite pose;
             if (Flashing && skin.Hurt != null)
                 pose = skin.Hurt;
             else if (!state.Grounded)
                 pose = skin.Jump;
-            else if (Mathf.Abs(state.Velocity.x) > 0.15f && skin.Walk != null && skin.Walk.Length > 0)
+            else if (m_Walking && skin.Walk != null && skin.Walk.Length > 0)
                 pose = skin.Walk[Mathf.Abs(Mathf.FloorToInt(m_WalkPhase / Stride)) % skin.Walk.Length];
             else
                 pose = skin.Stand;

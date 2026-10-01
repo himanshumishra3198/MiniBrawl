@@ -28,7 +28,10 @@ from PIL import Image, ImageChops, ImageDraw
 
 S = 4
 W, H = 84, 160          # 160px at 100 ppu = 1.6 world units
-WALK_FRAMES = 4
+# Eight frames, not four. Four is enough to describe a walk but not enough to make
+# one look continuous, and the gap between frames is visible as a snap at the speed
+# these characters move.
+WALK_FRAMES = 8
 
 RIG       = (138, 118, 82)      # coyote-tan chest rig
 RIG_DARK  = (104, 88, 60)

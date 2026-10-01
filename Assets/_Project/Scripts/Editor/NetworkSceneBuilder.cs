@@ -80,10 +80,22 @@ public static class NetworkSceneBuilder
         motor.HitMask = (1 << levelLayer) | (1 << hittableLayer);
         go.AddComponent<PrototypeInputSource>();
 
-        // Prediction is off by default on NetworkObject, and without it [Replicate]/[Reconcile]
-        // silently do nothing. State forwarding (on by default) is what moves spectated players.
+        /* Prediction is off by default on NetworkObject, and without it [Replicate]/[Reconcile]
+         * silently do nothing. State forwarding (on by default) is what moves spectated players.
+         *
+         * _graphicalObject is the other half of that, and it was left null: FishNet's prediction
+         * smoothing only runs on an assigned child, so the interpolation settings sitting right
+         * beside it did nothing at all and the body snapped once per tick. Nothing warns about
+         * this — it just looks like a stuttering game. */
         var serialized = new SerializedObject(nob);
         serialized.FindProperty("_enablePrediction").boolValue = true;
+
+        Transform graphical = go.transform.Find("Graphical");
+        if (graphical == null)
+            Debug.LogError("[NetworkSceneBuilder] No Graphical child — movement will not be smoothed.");
+        else
+            serialized.FindProperty("_graphicalObject").objectReferenceValue = graphical;
+
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
         GameObject saved = PrefabUtility.SaveAsPrefabAsset(go, k_PrefabPath);
@@ -134,11 +146,14 @@ public static class NetworkSceneBuilder
         var spawner = go.AddComponent<PlayerSpawner>();
         spawner.PlayerPrefab = playerPrefab;
         spawner.MatchDirectorPrefab = directorPrefab;
+        /* Spread across the 44-unit arena and all in open air, so a spawn drops onto whatever is
+         * below rather than risking a start inside a ledge. Six seats, six corners of the map —
+         * spawning two players on top of each other is how a match opens with a free kill. */
         spawner.SpawnPoints = new[]
         {
-            new Vector2(-4f, -4f), new Vector2(4f, -4f),
-            new Vector2(-8f, -4f), new Vector2(8f, -4f),
-            new Vector2(-2f, 0f),  new Vector2(2f, 0f),
+            new Vector2(-18f, -8f), new Vector2(18f, -8f),
+            new Vector2(-14f, -3f), new Vector2(14f, -3f),
+            new Vector2(0f, -1f),   new Vector2(0f, 6f),
         };
     }
 

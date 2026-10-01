@@ -27,8 +27,11 @@ public static class PrototypeSceneBuilder
     internal const string k_LevelLayer = "Level";
     internal const string k_HittableLayer = "Hittable";
 
-    static readonly Color k_Background = new Color(0.09f, 0.10f, 0.13f);
-    static readonly Color k_LevelColor = new Color(0.30f, 0.34f, 0.42f);
+    // Island at dusk. Kept dark on purpose: six camouflaged players have to stay readable
+    // against it, and a bright daytime sky would put pastel uniforms on a pale background.
+    static readonly Color k_Background = new Color(0.055f, 0.105f, 0.155f);
+    static readonly Color k_LevelColor = new Color(0.27f, 0.23f, 0.18f);
+    static readonly Color k_GrassColor = new Color(0.22f, 0.42f, 0.24f);
     internal static readonly Color k_PlayerColor = new Color(0.35f, 0.85f, 1f);
     static readonly Color k_TargetColor = new Color(1f, 0.45f, 0.4f);
 
@@ -77,6 +80,7 @@ public static class PrototypeSceneBuilder
 
         var follow = rig.AddComponent<CameraFollow>();
         follow.View = cam;
+        follow.WorldSize = new Vector2(44f, 24f);   // must match the level built below
 
         go.AddComponent<ScreenShake>();
 
@@ -125,16 +129,29 @@ public static class PrototypeSceneBuilder
 
         float feet = -PlayerMotor.Size.y * 0.5f;
 
-        visual.Body = MakeRenderer("Body", root.transform, GameAssets.Character(0, "stand"), 10);
+        /* Everything drawn hangs off one child, which FishNet smooths between ticks.
+         *
+         * The simulation writes the root's position once per tick and nowhere else, so at 30Hz on
+         * a 120Hz screen the same position renders four frames running and then jumps. That is the
+         * stutter, and no number of animation frames would have hidden it.
+         *
+         * The root is deliberately left snapping: the collider rides on it and the server's
+         * hitscan reads colliders, so smoothing the hitbox would land shots where a player is
+         * drawn rather than where they are. */
+        var graphical = new GameObject("Graphical");
+        graphical.transform.SetParent(root.transform, false);
+        Transform g = graphical.transform;
+
+        visual.Body = MakeRenderer("Body", g, GameAssets.Character(0, "stand"), 10);
         visual.Body.transform.localPosition = new Vector3(0f, feet, 0f);
 
         // Seat 0's arm is a placeholder; PlayerVisual swaps in the right seat's once the roster
         // says which seat this is.
-        visual.Gun = MakeRenderer("Gun", root.transform, GameAssets.Arm(0), 11);
+        visual.Gun = MakeRenderer("Gun", g, GameAssets.Arm(0), 11);
 
         // Pivoted at its base and turned to hang downwards, so lengthening the flame grows it away
         // from the feet instead of up through the body.
-        visual.Jet = MakeRenderer("Jet", root.transform, GameAssets.Emitted("flame"), 9);
+        visual.Jet = MakeRenderer("Jet", g, GameAssets.Emitted("flame"), 9);
         visual.Jet.transform.localPosition = new Vector3(0f, feet + 0.05f, 0f);
         visual.Jet.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
 
@@ -143,7 +160,7 @@ public static class PrototypeSceneBuilder
          * points along +x, and placed at the muzzle: 0.995 units past the shoulder pivot, measured
          * off the rifle in tools/commando.py. This object is also what PlayerVisual reports as the
          * muzzle position, so sparks and tracers follow it without a second constant. */
-        BuildNameplate(root);
+        BuildNameplate(graphical);
 
         visual.Muzzle = MakeRenderer("Muzzle", visual.Gun.transform, GameAssets.Emitted("muzzle"), 12);
         visual.Muzzle.transform.localPosition = new Vector3(0.995f, 0.01f, 0f);
@@ -159,11 +176,11 @@ public static class PrototypeSceneBuilder
     /// A child of the root rather than of the body, so it does not mirror when the body flips to
     /// face the other way — a reversed name is worse than no name.
     /// </summary>
-    static void BuildNameplate(GameObject root)
+    static void BuildNameplate(GameObject graphical)
     {
         Sprite square = EnsureSquareSprite();
         var plate = new GameObject("Nameplate");
-        plate.transform.SetParent(root.transform, false);
+        plate.transform.SetParent(graphical.transform, false);
         plate.transform.localPosition = new Vector3(0f, PlayerMotor.Size.y * 0.5f + 0.30f, 0f);
 
         var nameplate = plate.AddComponent<PlayerNameplate>();
@@ -206,15 +223,102 @@ public static class PrototypeSceneBuilder
     {
         var root = new GameObject("Level").transform;
 
-        // A closed box: the jetpack is only tunable if you can hit a ceiling and slide off walls.
-        Block("Floor",      new Vector2(0f, -6f),    new Vector2(26f, 1f), square, layer, root);
-        Block("Ceiling",    new Vector2(0f, 6f),     new Vector2(26f, 1f), square, layer, root);
-        Block("WallLeft",   new Vector2(-12.5f, 0f), new Vector2(1f, 13f), square, layer, root);
-        Block("WallRight",  new Vector2(12.5f, 0f),  new Vector2(1f, 13f), square, layer, root);
+        /* 44 x 24 including walls, up from 26 x 13. The old room was built when the camera
+         * framed all of it at once and a player was 0.9 units tall; now the camera follows and a
+         * player is 1.6, so the same room was two screens wide and felt like a corridor.
+         *
+         * Every vertical gap below clears 1.6 with room to spare — the tightest is 2.7 between
+         * the top platforms and the ceiling. */
+        Block("Floor",     new Vector2(0f, -11f),    new Vector2(44f, 1f), square, layer, root);
+        Block("Ceiling",   new Vector2(0f, 11f),     new Vector2(44f, 1f), square, layer, root);
+        Block("WallLeft",  new Vector2(-21.5f, 0f),  new Vector2(1f, 23f), square, layer, root);
+        Block("WallRight", new Vector2(21.5f, 0f),   new Vector2(1f, 23f), square, layer, root);
 
-        Block("Platform_A", new Vector2(-6f, -2.5f), new Vector2(6f, 0.6f), square, layer, root);
-        Block("Platform_B", new Vector2(6f, 0.5f),   new Vector2(6f, 0.6f), square, layer, root);
-        Block("Platform_C", new Vector2(0f, 3.2f),   new Vector2(4f, 0.6f), square, layer, root);
+        // Low ledges, mid tier, then a scattered upper tier: enough footing that a jetpack is
+        // worth using to cross, without so much that the floor stops mattering.
+        Block("Ledge_L",   new Vector2(-14f, -6.5f), new Vector2(8f, 0.6f), square, layer, root);
+        Block("Ledge_R",   new Vector2(14f, -6.5f),  new Vector2(8f, 0.6f), square, layer, root);
+        Block("Ledge_C",   new Vector2(0f, -4f),     new Vector2(7f, 0.6f), square, layer, root);
+
+        Block("Mid_L",     new Vector2(-8f, -0.5f),  new Vector2(7f, 0.6f), square, layer, root);
+        Block("Mid_R",     new Vector2(8f, -0.5f),   new Vector2(7f, 0.6f), square, layer, root);
+        Block("Mid_C",     new Vector2(0f, 3.5f),    new Vector2(9f, 0.6f), square, layer, root);
+
+        Block("High_LL",   new Vector2(-16f, 4f),    new Vector2(6f, 0.6f), square, layer, root);
+        Block("High_RR",   new Vector2(16f, 4f),     new Vector2(6f, 0.6f), square, layer, root);
+        Block("High_L",    new Vector2(-7f, 7.5f),   new Vector2(6f, 0.6f), square, layer, root);
+        Block("High_R",    new Vector2(7f, 7.5f),    new Vector2(6f, 0.6f), square, layer, root);
+
+        BuildIsland(root);
+    }
+
+    /// <summary>
+    /// Palms, grass and clouds. Decoration only — no colliders, and nothing here is consulted by
+    /// the simulation, so a machine that failed to draw a single palm still agrees about the match.
+    /// </summary>
+    static void BuildIsland(Transform root)
+    {
+        var decor = new GameObject("Island").transform;
+        decor.SetParent(root, false);
+
+        // Standing on the floor and on the ledges. Sorted in front of the terrain they stand on
+        // and behind the players, so nobody is ever hidden by scenery.
+        Palm(decor, 0, new Vector2(-19f, -10.5f), 2.6f);
+        Palm(decor, 2, new Vector2(-16.5f, -10.5f), 3.2f);
+        Palm(decor, 1, new Vector2(17.5f, -10.5f), 2.4f);
+        Palm(decor, 0, new Vector2(20f, -10.5f), 3.0f);
+        Palm(decor, 2, new Vector2(-12f, -6.2f), 2.3f);
+        Palm(decor, 1, new Vector2(15.5f, -6.2f), 2.1f);
+        Palm(decor, 0, new Vector2(-17f, 4.3f), 2.0f);
+        Palm(decor, 2, new Vector2(17f, 4.3f), 2.2f);
+
+        float[] floorTufts = { -9f, -5.5f, -2f, 3f, 7f, 11f };
+        foreach (float x in floorTufts) Tuft(decor, new Vector2(x, -10.5f));
+
+        Tuft(decor, new Vector2(-15f, -6.2f));
+        Tuft(decor, new Vector2(13f, -6.2f));
+        Tuft(decor, new Vector2(-1.5f, -3.7f));
+        Tuft(decor, new Vector2(-9f, -0.2f));
+        Tuft(decor, new Vector2(9f, -0.2f));
+        Tuft(decor, new Vector2(2f, 3.8f));
+
+        Cloud(decor, 0, new Vector2(-13f, 8.5f), 3.2f);
+        Cloud(decor, 1, new Vector2(3f, 9.5f), 4.0f);
+        Cloud(decor, 2, new Vector2(15f, 7.5f), 2.8f);
+    }
+
+    static void Palm(Transform parent, int variant, Vector2 footing, float height)
+    {
+        Sprite sprite = GameAssets.Island($"palm{variant}");
+        if (sprite == null) return;
+
+        var sr = MakeRenderer($"Palm_{variant}_{footing.x}", parent, sprite, 1);
+        float scale = height / sprite.bounds.size.y;
+        sr.transform.localScale = new Vector3(scale, scale, 1f);
+        sr.transform.position = new Vector3(footing.x, footing.y + height * 0.5f, 0f);
+    }
+
+    static void Tuft(Transform parent, Vector2 footing)
+    {
+        Sprite sprite = GameAssets.Island($"grass{Mathf.Abs((int)footing.x) % 3}");
+        if (sprite == null) return;
+
+        var sr = MakeRenderer($"Grass_{footing.x}", parent, sprite, 2);
+        float scale = 0.55f / sprite.bounds.size.y;
+        sr.transform.localScale = new Vector3(scale, scale, 1f);
+        sr.transform.position = new Vector3(footing.x, footing.y + 0.275f, 0f);
+    }
+
+    static void Cloud(Transform parent, int variant, Vector2 at, float width)
+    {
+        Sprite sprite = GameAssets.Island($"cloud{variant}");
+        if (sprite == null) return;
+
+        var sr = MakeRenderer($"Cloud_{variant}_{at.x}", parent, sprite, -30);
+        float scale = width / sprite.bounds.size.x;
+        sr.transform.localScale = new Vector3(scale, scale, 1f);
+        sr.transform.position = new Vector3(at.x, at.y, 0f);
+        sr.color = new Color(1f, 1f, 1f, 0.16f);   // far off, and must not compete with players
     }
 
     internal static void Block(string name, Vector2 pos, Vector2 size, Sprite square, int layer, Transform parent)
@@ -237,6 +341,23 @@ public static class PrototypeSceneBuilder
         sr.color = k_LevelColor;
 
         go.AddComponent<BoxCollider2D>().size = size;
+
+        /* A strip of grass along the top edge. This is what turns a grey slab into ground, and it
+         * is drawn as a child rather than baked into the tile so the collider stays exactly the
+         * block — scenery that changed where you could stand would be a bug, not decoration. */
+        if (size.x < 2f) return;      // walls get no cap; it would look like moss on a cliff face
+
+        var cap = new GameObject("Grass");
+        cap.transform.SetParent(go.transform, false);
+        cap.transform.localPosition = new Vector3(0f, size.y * 0.5f - 0.06f, 0f);
+
+        var capRenderer = cap.AddComponent<SpriteRenderer>();
+        capRenderer.sprite = GameAssets.Tile();
+        capRenderer.drawMode = SpriteDrawMode.Tiled;
+        capRenderer.tileMode = SpriteTileMode.Continuous;
+        capRenderer.size = new Vector2(size.x, 0.22f);
+        capRenderer.color = k_GrassColor;
+        capRenderer.sortingOrder = 1;
     }
 
     internal static void BuildTargets(Sprite square, int hittableLayer)

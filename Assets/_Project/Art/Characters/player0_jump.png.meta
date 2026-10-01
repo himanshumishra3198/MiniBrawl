@@ -90,10 +90,10 @@ TextureImporter:
       name: player0_jump_0
       rect:
         serializedVersion: 2
-        x: 19
-        y: 3
-        width: 49
-        height: 157
+        x: 18
+        y: 1
+        width: 51
+        height: 159
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

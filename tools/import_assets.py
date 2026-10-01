@@ -25,7 +25,7 @@ jobs = []
 # Six seats, five poses each, plus one arm-and-rifle per seat. The weapon is
 # per-seat rather than shared because the firing arm wears the uniform colour.
 for i in range(6):
-    for pose in ['stand', 'jump', 'hurt', 'walk1', 'walk2', 'walk3', 'walk4']:
+    for pose in ['stand', 'jump', 'hurt'] + [f'walk{k}' for k in range(1, 9)]:
         jobs.append((f'{GEN}/Characters/player{i}_{pose}.png', f'Art/Characters/player{i}_{pose}.png'))
     jobs.append((f'{GEN}/Weapons/arm{i}.png', f'Art/Weapons/arm{i}.png'))
 
@@ -33,6 +33,17 @@ for i in range(6):
 # Kenney's tiles are light, and the level has to stay darker than the players standing on it.
 TILES = f'{SRC}/platformer-art-deluxe/Base pack/Tiles'
 jobs.append((f'{TILES}/castleCenter.png', 'Art/Tiles/platform.png'))
+
+# Island dressing. Palms are drawn by tools/island.py because every one of the
+# thirty-five trees in Kenney's background pack is a conifer, a cactus or a round
+# broadleaf, and none of those say island.
+BG = f'{SRC}/background-elements/PNG'
+for k in range(3):
+    jobs.append((f'{GEN}/Island/palm{k}.png', f'Art/Island/palm{k}.png'))
+for k, src in enumerate(['grass2', 'grass4', 'grass6']):
+    jobs.append((f'{BG}/{src}.png', f'Art/Island/grass{k}.png'))
+for k, src in enumerate(['cloud1', 'cloud4', 'cloud7']):
+    jobs.append((f'{BG}/{src}.png', f'Art/Island/cloud{k}.png'))
 
 # Particles. Greyscale on purpose — every one of these gets tinted at runtime.
 jobs += [

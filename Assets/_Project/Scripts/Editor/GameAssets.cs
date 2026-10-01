@@ -52,6 +52,11 @@ public static class GameAssets
         ArtImport.Sprite($"{k_Art}/Tiles/platform.png", 140f, new Vector2(0.5f, 0.5f),
                          fullRect: true);
 
+    /// <summary>Island scenery: palms, grass tufts, clouds. Pivoted centrally; the builder
+    /// positions them by their footing.</summary>
+    public static Sprite Island(string name) =>
+        ArtImport.Sprite($"{k_Art}/Island/{name}.png", 100f, new Vector2(0.5f, 0.5f));
+
     public static Sprite Ui(string name) =>
         ArtImport.Sprite($"{k_Art}/UI/{name}.png", 100f, new Vector2(0.5f, 0.5f));
 
@@ -73,10 +78,13 @@ public static class GameAssets
         return skins;
     }
 
-    /// <summary>The walk frames in cycle order. Four, matching tools/commando.py.</summary>
+    /// <summary>Must match WALK_FRAMES in tools/commando.py.</summary>
+    const int k_WalkFrames = 8;
+
+    /// <summary>The walk frames in cycle order.</summary>
     static Sprite[] WalkCycle(int seat)
     {
-        var frames = new Sprite[4];
+        var frames = new Sprite[k_WalkFrames];
         for (int i = 0; i < frames.Length; i++) frames[i] = Character(seat, $"walk{i + 1}");
         return frames;
     }
