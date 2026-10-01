@@ -23,6 +23,18 @@ namespace MiniBrawl.Gameplay.Tests
         const string k_Prototype = "Assets/_Project/Scenes/10_Prototype.unity";
         const string k_Network = "Assets/_Project/Scenes/20_Network.unity";
 
+        /// <summary>
+        /// Leaves an empty scene behind.
+        ///
+        /// Opening a scene puts its colliders into the physics world, and they stay there for
+        /// every test that runs afterwards. Physics2DCollisionTests builds its own floor and drops
+        /// a player onto it; with the arena still loaded the player landed on the arena instead.
+        /// A test that changes global state has to put it back.
+        /// </summary>
+        [TearDown]
+        public void CloseScene() =>
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
         static T[] FindAll<T>(Scene scene) where T : Component =>
             scene.GetRootGameObjects()
                  .SelectMany(root => root.GetComponentsInChildren<T>(includeInactive: true))

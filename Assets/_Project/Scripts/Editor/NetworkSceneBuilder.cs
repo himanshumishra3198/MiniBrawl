@@ -296,12 +296,13 @@ public static class NetworkSceneBuilder
         PrototypeSceneBuilder.Stretch(leaveLabel.rectTransform);
         leaveLabel.text = "LEAVE";
 
-        /* Weapon swap, bottom-left above the move stick. On-screen controls drive a virtual
-         * gamepad, so this button and a real controller's west face button are the same control
-         * as far as the input source is concerned. */
+        /* Weapon swap, inboard of the aim stick on the right. It was first placed bottom-left,
+         * where it sat on top of the move stick — a button overlapping a thumbstick steals the
+         * drag that was meant to steer. On-screen controls drive a virtual gamepad, so this and a
+         * real controller's west face button are the same control to the input source. */
         Image swapImage = PrototypeSceneBuilder.MakeImage("SwapButton", canvas, GameAssets.Ui("button_round"),
-            new Color(1f, 1f, 1f, 0.5f), new Vector2(0f, 0f), new Vector2(330f, 150f),
-            new Vector2(150f, 150f));
+            new Color(1f, 1f, 1f, 0.5f), new Vector2(1f, 0f), new Vector2(-560f, 130f),
+            new Vector2(140f, 140f));
         var swap = swapImage.gameObject.AddComponent<OnScreenButton>();
         swap.controlPath = "<Gamepad>/buttonWest";
 

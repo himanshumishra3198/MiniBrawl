@@ -24,7 +24,7 @@ import colorsys
 import math
 import os
 import random
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 S = 4
 W, H = 96, 160          # 160px at 100 ppu = 1.6 world units
@@ -106,12 +106,12 @@ def camouflage(size, tones, seed):
     d = ImageDraw.Draw(layer)
     rng = random.Random(seed)
 
-    for _ in range(110):
+    for _ in range(260):
         tone = tones[rng.randint(1, 2)]
         x = rng.uniform(0, size[0])
         y = rng.uniform(0, size[1])
-        w = rng.uniform(5, 13) * S
-        h = rng.uniform(4, 10) * S
+        w = rng.uniform(3, 7.5) * S
+        h = rng.uniform(2.5, 6) * S
 
         # Overlapping ellipses per blob: a lone ellipse reads as a polka dot.
         for k in range(3):
@@ -120,6 +120,71 @@ def camouflage(size, tones, seed):
             d.ellipse([ox - w / 2, oy - h / 2, ox + w / 2, oy + h / 2], fill=tone)
 
     return layer
+
+
+OUTLINE = (16, 18, 24, 255)
+
+
+def polish(img):
+    """Shading and an outline, applied at 4x before the sprite is reduced.
+
+    Flat fills read as programmer art no matter how good the shapes are: with no
+    value change across a form there is nothing for an eye to read as volume, and
+    with no outline the character dissolves into whatever it is standing on.
+
+    Three passes, cheapest first:
+
+      shade   — a vertical gradient, lighter at the head and darker at the boots.
+                This is the one that turns a silhouette into a body.
+      rim     — a light edge along the top, which reads as a sky above an island.
+      outline — a dark border, grown from the alpha. This is what separates the
+                character from the background in a game where both are dark.
+    """
+    w, h = img.size
+    pixels = img.load()
+
+    # Vertical gradient. Deliberately gentle: strong enough to give form, not so
+    # strong that the boots look like a different material from the trousers.
+    for y in range(h):
+        t = y / (h - 1.0)
+        factor = 1.10 - 0.30 * t
+        for x in range(w):
+            r, g, b, a = pixels[x, y]
+            if a == 0:
+                continue
+            pixels[x, y] = (min(255, int(r * factor)), min(255, int(g * factor)),
+                            min(255, int(b * factor)), a)
+
+    alpha = img.getchannel('A')
+
+    # Rim light: the top edge only, found by subtracting the alpha from a copy of
+    # itself shifted down. Cheap, and exactly the pixels that face upwards.
+    shifted = Image.new('L', (w, h), 0)
+    shifted.paste(alpha, (0, 6))
+    rim_mask = ImageChops.subtract(alpha, shifted)
+    rim = Image.new('RGBA', (w, h), (255, 250, 235, 255))
+    rim.putalpha(rim_mask.point(lambda v: int(v * 0.22)))
+    img = Image.alpha_composite(img, rim)
+
+    # Underside shadow, the mirror of the rim: the alpha minus a copy shifted up
+    # leaves the downward-facing edges. Limbs are drawn as capsules of one flat
+    # tone, and without this they stay tubes rather than becoming round.
+    lifted = Image.new('L', (w, h), 0)
+    lifted.paste(alpha, (0, -7))
+    under_mask = ImageChops.subtract(alpha, lifted)
+    under = Image.new('RGBA', (w, h), (10, 12, 18, 255))
+    under.putalpha(under_mask.point(lambda v: int(v * 0.30)))
+    img = Image.alpha_composite(img, under)
+
+    # Outline, grown from the alpha so it follows the silhouette exactly rather
+    # than being drawn shape by shape and missing wherever two shapes meet. Wide
+    # enough to survive the reduction to final size — at 4x, nine pixels of
+    # growth became one, which is a hairline nobody reads as an outline.
+    grown = alpha.filter(ImageFilter.MaxFilter(15))
+    border = Image.new('RGBA', (w, h), OUTLINE)
+    border.putalpha(grown)
+
+    return Image.alpha_composite(border, img)
 
 
 def head(p, hx, hy, tones):
@@ -280,6 +345,16 @@ def body(seat_rgb01, pose, seed):
     p.rr((cx - 11 + lean, ty + 17, cx - 2 + lean, ty + 30), 2, RIG_DARK)
     p.rr((cx + 2 + lean, ty + 17, cx + 11 + lean, ty + 30), 2, RIG_DARK)
     p.rr((cx - 16 + lean, ty + 11, cx + 17 + lean, ty + 14), 1, RIG_LIT)
+
+    # Kit on the carrier. The plate was a plain slab with two pouches, which at this
+    # size reads as a bib rather than as equipment: these are the small shapes that
+    # say the uniform is worn rather than painted on.
+    p.rr((cx - 16 + lean, ty + 31, cx + 17 + lean, ty + 34), 1, STRAP)      # lower strap
+    p.rr((cx - 4 + lean, ty + 9, cx + 4 + lean, ty + 13), 1.5, STRAP)       # buckle
+    p.rr((cx + 12 + lean, ty + 16, cx + 17 + lean, ty + 26), 1.5, RIG_LIT)  # side pouch
+    p.rr((cx - 16 + lean, ty + 16, cx - 12 + lean, ty + 24), 1.5, RIG_LIT)
+    p.rr((cx - 14 + lean, ty - 2, cx - 10 + lean, ty + 7), 1.5, GUNMETAL)   # radio
+    p.rr((cx - 13 + lean, ty - 9, cx - 11.5 + lean, ty - 1), 0.6, METAL_LIT) # antenna
     p.rr((cx - 20 + lean, ty + 2, cx + 20 + lean, ty + 8), 2.5, STRAP)   # shoulder straps
     p.rr((cx - 20, top - 13, cx + 20, top - 6), 2.5, STRAP)              # belt
     p.rr((cx + 6, top + 2, cx + 18, top + 19), 3, RIG_DARK)              # dump pouch
@@ -288,7 +363,7 @@ def body(seat_rgb01, pose, seed):
     p.rr((cx + 1 + lean, ty - 9, cx + 8 + lean, ty + 3), 3.5, SKIN_DARK) # neck
     head(p, cx + 1 + lean, ty - 24, tones)
 
-    return img.resize((W, H), Image.LANCZOS)
+    return polish(img).resize((W, H), Image.LANCZOS)
 
 
 # --- weapon arms ---------------------------------------------------------------
@@ -380,7 +455,7 @@ def weapon_arm(seat_rgb01, seed, kind='rifle'):
     if support is not None:
         p.ell((support[0] - 6, support[1] - 6, support[0] + 6, support[1] + 6), STRAP)
 
-    return img.resize((GW, GH), Image.LANCZOS)
+    return polish(img).resize((GW, GH), Image.LANCZOS)
 
 
 SEATS = [

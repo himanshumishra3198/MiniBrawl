@@ -46,12 +46,19 @@ public static class SpriteAtlases
 
         var atlas = new SpriteAtlasAsset();
 
-        /* Padding of 4, not the default 2. These sprites are scaled down at runtime — a 160px
-         * commando drawn at a fraction of that — and bilinear sampling at a reduced size reaches
-         * past the sprite's own edge. Too little padding and a neighbour bleeds into the frame. */
+        /* Padding of 8, and the number is not arbitrary.
+         *
+         * Two things reach past a sprite's own edge. Bilinear sampling does, because these are
+         * drawn well below their native size. And ASTC compresses in 6x6 pixel blocks, so a gap
+         * narrower than a block means two sprites share one — whatever is packed next door leaks
+         * through as an artefact that no amount of correct UVs will remove.
+         *
+         * Padding of 4 shipped exactly that: a checkmark icon bled onto the thumbstick beside it
+         * in the atlas. Anything below 6 is broken by construction for this format; 8 leaves a
+         * whole block of margin. */
         atlas.SetPackingSettings(new SpriteAtlasPackingSettings
         {
-            padding = 4,
+            padding = 8,
             enableRotation = false,     // rotated sprites confuse nothing here, but save nothing either
             enableTightPacking = false, // tight packing costs vertices to save space we are not short of
             blockOffset = 1,

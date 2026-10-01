@@ -239,23 +239,32 @@ namespace MiniBrawl.Networking.Session
             if (open) RefreshSettings();
         }
 
-        void StepVolume(bool up) =>
-            Nudge(v => GameSettings.MasterVolume = v, GameSettings.MasterVolume, up);
-
-        void StepEffects(bool up) =>
-            Nudge(v => GameSettings.SfxVolume = v, GameSettings.SfxVolume, up);
-
-        /// <summary>Moves a 0-1 setting by a fifth, clamped. Five steps including silence.</summary>
-        static void Nudge(System.Action<float> set, float current, bool up)
+        /// <summary>
+        /// Changes a setting and redraws the labels.
+        ///
+        /// Everything that writes a setting goes through here. The volume buttons previously
+        /// changed the value and returned, leaving the label showing the old one — the setting was
+        /// applied, so the game got quieter while the screen insisted it had not. Funnelling the
+        /// writes means the redraw cannot be forgotten by whatever is added next.
+        /// </summary>
+        void Change(System.Action write)
         {
-            set(Mathf.Clamp01(Mathf.Round((current + (up ? 0.25f : -0.25f)) * 4f) / 4f));
-        }
-
-        void ToggleDebug()
-        {
-            GameSettings.ShowDebugOverlay = !GameSettings.ShowDebugOverlay;
+            write();
             RefreshSettings();
         }
+
+        void StepVolume(bool up) =>
+            Change(() => GameSettings.MasterVolume = Stepped(GameSettings.MasterVolume, up));
+
+        void StepEffects(bool up) =>
+            Change(() => GameSettings.SfxVolume = Stepped(GameSettings.SfxVolume, up));
+
+        void ToggleDebug() =>
+            Change(() => GameSettings.ShowDebugOverlay = !GameSettings.ShowDebugOverlay);
+
+        /// <summary>Moves a 0-1 setting by a quarter, clamped. Five steps including silence.</summary>
+        static float Stepped(float current, bool up) =>
+            Mathf.Clamp01(Mathf.Round((current + (up ? 0.25f : -0.25f)) * 4f) / 4f);
 
         void RefreshSettings()
         {
