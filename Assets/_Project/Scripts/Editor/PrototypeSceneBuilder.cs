@@ -108,10 +108,8 @@ public static class PrototypeSceneBuilder
         var sfx = go.AddComponent<Sfx>();
         sfx.Banks = GameAssets.Banks();
 
-        // A plain white square, stretched along the shot: a soft round particle smears into a
-        // blur at this speed instead of reading as a bullet.
         var tracers = go.AddComponent<BulletTracers>();
-        tracers.Sprite = square;
+        tracers.Sprite = GameAssets.Particle("tracer");
     }
 
     /// <summary>

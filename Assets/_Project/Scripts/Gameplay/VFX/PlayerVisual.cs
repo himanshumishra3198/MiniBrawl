@@ -56,6 +56,10 @@ namespace MiniBrawl.Gameplay.VFX
 
         public float MuzzleScale = 0.4f;
 
+        [Tooltip("How fast the drawn weapon catches up to the aim, per second. The aim itself " +
+                 "only changes once per tick, so without this the gun steps at the tick rate.")]
+        public float GunResponse = 22f;
+
         [Header("Set by whoever owns match identity")]
         public int Seat;
         public Color SeatColor = Color.white;
@@ -67,6 +71,8 @@ namespace MiniBrawl.Gameplay.VFX
         float m_MuzzleRemaining;
         bool m_FacingLeft;
         bool m_Walking;
+        float m_GunAngle;
+        bool m_GunPrimed;
 
         /// <summary>
         /// The shoulder, in root-local space. Measured off the drawing: the body sprite is 160px
@@ -179,7 +185,31 @@ namespace MiniBrawl.Gameplay.VFX
             if (Gun == null) return;
 
             Gun.transform.localPosition = k_GunAnchor;
-            Gun.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg);
+
+            /* The weapon angle is eased rather than set.
+             *
+             * Aim arrives with the rest of the input, once per simulation tick, so setting the
+             * rotation straight from it steps the gun thirty times a second however fast the
+             * screen is. FishNet's smoothing does not cover this: it interpolates the graphical
+             * child's position, and this is a rotation set locally underneath it.
+             *
+             * LerpAngle takes the short way round, so crossing from +179 to -179 does not spin
+             * the weapon the long way. The first frame snaps, because easing in from a default
+             * of zero would sweep the barrel up from due east on every spawn. */
+            float target = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+
+            if (!m_GunPrimed)
+            {
+                m_GunAngle = target;
+                m_GunPrimed = true;
+            }
+            else
+            {
+                m_GunAngle = Mathf.LerpAngle(m_GunAngle, target,
+                    1f - Mathf.Exp(-GunResponse * Time.deltaTime));
+            }
+
+            Gun.transform.localRotation = Quaternion.Euler(0f, 0f, m_GunAngle);
 
             // Rotating past vertical puts the gun on its back. Mirroring across the barrel keeps
             // the grip under it without moving the muzzle, which is where shots come from.

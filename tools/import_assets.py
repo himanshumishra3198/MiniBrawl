@@ -4,7 +4,7 @@ Characters and weapons are drawn by tools/commando.py and come from gen/. The
 rest is a deliberately small subset of the Kenney packs: they total well over
 100 MB, and everything copied here is something the game actually draws or plays.
 """
-import os, shutil, sys
+import glob, os, re, shutil, sys
 
 SRC  = 'unpacked'
 GEN  = 'gen'
@@ -52,6 +52,9 @@ jobs += [
     (f'{P}/star_01.png',   'Art/Particles/spark.png'),
     (f'{P}/circle_05.png', 'Art/Particles/glow.png'),
     (f'{SM}/whitePuff12.png', 'Art/Particles/puff.png'),
+    # Drawn by tools/tracer.py. A flat square stretched along the shot read as a
+    # stick lying in the air; a streak needs a bright head and a fading tail.
+    (f'{GEN}/Particles/tracer.png', 'Art/Particles/tracer.png'),
 ]
 
 jobs += [
@@ -98,7 +101,17 @@ for src, rel in jobs:
     shutil.copy2(src, dst)
     total += os.path.getsize(dst)
 
-print(f'copied {len(jobs) - len(missing)}/{len(jobs)} files, {total/1024/1024:.2f} MB')
+# iCloud syncs this Documents folder and periodically leaves conflict copies next to
+# the originals -- "flame 2.png", "flame 3.png" and so on, each with its own .meta,
+# each imported by Unity. They are referenced by nothing, but they accumulate every
+# time these assets are rewritten, so they are swept here rather than by hand.
+strays = [f for f in glob.glob(f'{PROJ}/**/*', recursive=True)
+          if re.match(r'.* \d+\.(png|ogg|wav|meta)$', os.path.basename(f))]
+for f in strays:
+    os.remove(f)
+
+print(f'copied {len(jobs) - len(missing)}/{len(jobs)} files, {total/1024/1024:.2f} MB'
+      + (f', swept {len(strays)} iCloud conflict copies' if strays else ''))
 for m in missing:
     print('MISSING', m)
 sys.exit(1 if missing else 0)

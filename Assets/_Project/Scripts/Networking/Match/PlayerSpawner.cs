@@ -19,8 +19,15 @@ namespace MiniBrawl.Networking.Match
         public NetworkObject MatchDirectorPrefab;
         public Vector2[] SpawnPoints = { new Vector2(-4f, -4f), new Vector2(4f, -4f) };
 
+        /// <summary>How many points to sample before picking. Four out of six is enough to
+        /// usually find a quiet corner without making spawns predictable.</summary>
+        const int k_Candidates = 4;
+
+        public static PlayerSpawner Instance { get; private set; }
+
         NetworkManager m_Manager;
-        int m_NextSpawn;
+
+        void Awake() => Instance = this;
 
         void Start()
         {
@@ -37,6 +44,7 @@ namespace MiniBrawl.Networking.Match
 
         void OnDestroy()
         {
+            if (Instance == this) Instance = null;
             if (m_Manager == null) return;
             m_Manager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedStartScenes;
             m_Manager.ServerManager.OnRemoteConnectionState -= OnRemoteConnectionState;
@@ -62,6 +70,47 @@ namespace MiniBrawl.Networking.Match
             MatchDirector.Instance?.ReleaseSlot(connection.ClientId);
         }
 
+        /// <summary>
+        /// A spawn point, chosen at random but biased away from whoever is already alive.
+        ///
+        /// Points used to be handed out in order, which meant a six-player match always began the
+        /// same way and a player always came back exactly where they died — easy to sit on. Pure
+        /// randomness fixes the predictability and introduces a worse problem, which is arriving
+        /// on top of somebody. Sampling a few and keeping the one furthest from the nearest living
+        /// player costs nothing at the rate this is called and avoids both.
+        ///
+        /// Server-only. The result reaches clients through reconciliation like any other position,
+        /// so nothing here has to be deterministic across machines.
+        /// </summary>
+        public Vector2 ChooseSpawn()
+        {
+            if (SpawnPoints == null || SpawnPoints.Length == 0) return Vector2.zero;
+            if (SpawnPoints.Length == 1) return SpawnPoints[0];
+
+            var motors = FindObjectsByType<Replication.NetworkPlayerMotor>(FindObjectsSortMode.None);
+
+            Vector2 best = SpawnPoints[Random.Range(0, SpawnPoints.Length)];
+            float bestClearance = -1f;
+
+            for (int attempt = 0; attempt < k_Candidates; attempt++)
+            {
+                Vector2 candidate = SpawnPoints[Random.Range(0, SpawnPoints.Length)];
+                float nearest = float.MaxValue;
+
+                foreach (Replication.NetworkPlayerMotor motor in motors)
+                {
+                    if (motor.State.IsDead) continue;   // a corpse is not a threat to spawn beside
+                    nearest = Mathf.Min(nearest, Vector2.Distance(candidate, motor.State.Position));
+                }
+
+                if (nearest <= bestClearance) continue;
+                bestClearance = nearest;
+                best = candidate;
+            }
+
+            return best;
+        }
+
         void OnClientLoadedStartScenes(NetworkConnection connection, bool asServer)
         {
             if (!asServer) return;   // the server owns spawning
@@ -72,9 +121,7 @@ namespace MiniBrawl.Networking.Match
                 return;
             }
 
-            Vector2 point = SpawnPoints.Length > 0
-                ? SpawnPoints[m_NextSpawn++ % SpawnPoints.Length]
-                : Vector2.zero;
+            Vector2 point = ChooseSpawn();
 
             NetworkObject player = Instantiate(PlayerPrefab, point, Quaternion.identity);
             m_Manager.ServerManager.Spawn(player, connection);

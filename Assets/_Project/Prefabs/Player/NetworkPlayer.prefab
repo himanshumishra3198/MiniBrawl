@@ -86,7 +86,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 0.84, y: 1.6}
+  m_Size: {x: 0.96, y: 1.6}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -649,6 +649,7 @@ MonoBehaviour:
   MuzzleFlashSeconds: 0.05
   JetScale: {x: 0.34, y: 0.55}
   MuzzleScale: 0.4
+  GunResponse: 22
   Seat: 0
   SeatColor: {r: 1, g: 1, b: 1, a: 1}
   Hidden: 0
@@ -803,7 +804,7 @@ MonoBehaviour:
     MaxFallSpeed: 10
     MaxRiseSpeed: 7.5
     FuelMax: 1
-    FuelDrainPerSecond: 0.33
+    FuelDrainPerSecond: 0.22
     FuelRegenPerSecond: 0.35
   m_WeaponConfig:
     FireInterval: 0.2

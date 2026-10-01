@@ -395,8 +395,9 @@ namespace MiniBrawl.Networking.Replication
             Vector2 end = hit.Hit ? hit.Point : muzzle + direction * m_WeaponConfig.Range;
             BulletTracers.Instance?.Fire(muzzle, end, k_TracerColor);
 
-            // Only the shooter feels the recoil, and only lightly — this fires five times a second.
-            if (IsOwner) ScreenShake.Instance?.Shake(0.045f);
+            /* No shake on firing. It fires five times a second, so even a light nudge is a view
+             * that never settles while a trigger is held — and it competes with the shake that
+             * means something, which is being hit. That one stays. */
 
             Sfx.PlayGlobal(SfxId.Shoot, IsOwner ? 0.75f : 0.28f);
             if (hit.Hit) Sfx.PlayGlobal(SfxId.HitWall, IsOwner ? 0.45f : 0.18f);
@@ -414,6 +415,16 @@ namespace MiniBrawl.Networking.Replication
             Deaths++;
             m_State.RespawnIn = RespawnDelay;
             m_State.Velocity = Vector2.zero;
+
+            /* Pick where to come back now, at the moment of death, rather than when the timer
+             * expires. The respawn itself happens inside the replicate step, which the host also
+             * runs during reconciliation replays — choosing randomly in there would hand back a
+             * different position every replay. Deciding once, here, keeps it stable.
+             *
+             * Without this the spawn point was whatever the player was given on joining, for the
+             * whole match, so dying returned you to the same square every time. */
+            if (Match.PlayerSpawner.Instance != null)
+                m_SpawnPoint = Match.PlayerSpawner.Instance.ChooseSpawn();
 
             Match.MatchDirector.Instance?.ReportKill(attackerClientId, OwnerId);
         }

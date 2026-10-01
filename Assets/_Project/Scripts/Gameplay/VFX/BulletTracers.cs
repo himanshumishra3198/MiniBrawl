@@ -28,10 +28,13 @@ namespace MiniBrawl.Gameplay.VFX
         public int PoolSize = 64;
 
         [Tooltip("World units per second. Fast enough to feel like a bullet, slow enough to see.")]
-        public float Speed = 70f;
+        public float Speed = 115f;
 
-        public float Length = 0.55f;
-        public float Thickness = 0.06f;
+        [Tooltip("The streak is drawn with a fading tail, so this is its full extent and the " +
+                 "visible part is shorter.")]
+        public float Length = 0.45f;
+
+        public float Thickness = 0.09f;
 
         struct Tracer
         {

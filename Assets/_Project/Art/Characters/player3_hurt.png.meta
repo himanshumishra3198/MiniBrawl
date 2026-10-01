@@ -90,9 +90,9 @@ TextureImporter:
       name: player3_hurt_0
       rect:
         serializedVersion: 2
-        x: 10
+        x: 14
         y: 0
-        width: 56
+        width: 66
         height: 158
       alignment: 0
       pivot: {x: 0, y: 0}

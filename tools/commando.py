@@ -27,7 +27,7 @@ import random
 from PIL import Image, ImageChops, ImageDraw
 
 S = 4
-W, H = 84, 160          # 160px at 100 ppu = 1.6 world units
+W, H = 96, 160          # 160px at 100 ppu = 1.6 world units
 # Eight frames, not four. Four is enough to describe a walk but not enough to make
 # one look continuous, and the gap between frames is visible as a snap at the speed
 # these characters move.
@@ -155,30 +155,72 @@ def head(p, hx, hy, tones):
     p.poly([(hx - 7, hy + 20), (hx - 1, hy + 19), (hx - 3, hy + 29)], SHEMAGH_D)
 
 
-def leg(p, hip, knee, foot, tone, back=False):
+# Just longer than the 48px from hip to planted foot, so standing is nearly straight
+# and the bend appears only when the foot lifts. Set longer than that and the
+# character stands in a permanent crouch.
+THIGH, SHIN = 26.0, 24.0
+BOOT_LEN = 13.0
+
+
+def knee_for(hip, foot, forward=1.0):
+    """Where the knee goes, given a hip and a foot.
+
+    Two-bone inverse kinematics, because the previous version put the knee at half
+    the foot's offset and called it a leg. That keeps the limb straight no matter
+    where the foot is, so the walk looked like a pair of scissors: the knee never
+    led the foot, and the leg never shortened as it lifted.
+
+    Solved the standard way — the knee lies on the circle intersection of the two
+    bone lengths — and the sign picks the solution that bends forward, since a leg
+    that folds the other way is a bird's.
+    """
+    dx, dy = foot[0] - hip[0], foot[1] - hip[1]
+    d = math.hypot(dx, dy)
+    d = max(1e-3, min(d, THIGH + SHIN - 0.5))      # never ask for a straighter leg than exists
+
+    a = (THIGH * THIGH - SHIN * SHIN + d * d) / (2 * d)
+    h = math.sqrt(max(0.0, THIGH * THIGH - a * a))
+
+    ux, uy = dx / d, dy / d
+    px, py = uy, -ux                                # +x while the leg hangs straight down
+    return hip[0] + ux * a + px * h * forward, hip[1] + uy * a + py * h * forward
+
+
+def leg(p, hip, foot, tone, back=False):
+    """Thigh, shin and boot, with the boot square to the shin."""
     f = 0.72 if back else 1.0
-    p.limb(hip, knee, 16, mul(tone, f))
-    p.limb(knee, foot, 13.5, mul(tone, f))
+    cloth = mul(tone, f)
+    knee = knee_for(hip, foot)
+
+    p.limb(hip, knee, 19, cloth)
+    p.limb(knee, foot, 15.5, cloth)
+    p.ell((knee[0] - 8, knee[1] - 8, knee[0] + 8, knee[1] + 8), mul(cloth, 1.08))   # knee pad
+
+    # The boot sits across the end of the shin rather than square to the world, so a
+    # lifted leg points its toe instead of dragging a flat slab through the air.
+    sx, sy = foot[0] - knee[0], foot[1] - knee[1]
+    n = math.hypot(sx, sy) or 1.0
+    tx, ty = sy / n, -sx / n                        # shin turned a quarter circle forward
+
+    heel = (foot[0] - tx * 3.0, foot[1] - ty * 3.0)
+    toe = (foot[0] + tx * BOOT_LEN, foot[1] + ty * BOOT_LEN)
+    shade = mul(BOOT, 0.8 if back else 1.0)
+
+    p.limb(heel, toe, 11, shade)
+    p.limb((heel[0], heel[1] + 2.5), (toe[0], toe[1] + 2.5), 5,
+           mul(BOOT_DARK, 0.8 if back else 1.0))
 
 
-def boot(p, foot, back=False):
-    bx, by = foot
-    p.rr((bx - 7, by - 4, bx + 11, by + 5), 2.5, mul(BOOT, 0.8 if back else 1.0))
-    p.rr((bx - 7, by + 2, bx + 11, by + 5), 1.5, mul(BOOT_DARK, 0.8 if back else 1.0))
+def walk_foot(phase, hip_x, foot_y, reach=15.0, lift=11.0):
+    """Where one foot is at a point in the cycle.
 
-
-def walk_leg(phase, hip_x, knee_y, foot_y, reach=14.0, lift=9.0):
-    """One leg at a point in the cycle, as (knee, foot).
-
-    Swinging both legs on a plain sine put the two passing positions in the same
-    place, so half a four-frame cycle duplicated the other half and the whole
-    thing read as a shuffle. The foot has to leave the ground on the way forward.
+    Only the foot is placed; the knee follows from it. Swinging both legs on a
+    plain sine put the two passing positions in the same place, so half a cycle
+    duplicated the other half and the whole thing read as a shuffle — the foot has
+    to leave the ground on the way forward.
     """
     a = 2 * math.pi * phase
-    x = math.cos(a)
-    up = max(0.0, -math.sin(a))
-    return ((hip_x + x * reach * 0.5, knee_y - up * lift * 0.55),
-            (hip_x + x * reach, foot_y - up * lift))
+    return hip_x + math.cos(a) * reach, foot_y - max(0.0, -math.sin(a)) * lift
 
 
 def body(seat_rgb01, pose, seed):
@@ -190,36 +232,38 @@ def body(seat_rgb01, pose, seed):
     cloth = Image.new('RGBA', (W * S, H * S), (0, 0, 0, 0))
     pc = Pen(cloth)
 
-    cx = 38
-    hip_y, knee_y, foot_y = 104, 132, 152
+    cx = 44
+    hip_y, foot_y = 104, 152
     drop = 0
     lean = 0
 
     if pose.startswith('walk'):
         t = (int(pose[4:]) - 1) / WALK_FRAMES
         drop, lean = abs(math.cos(2 * math.pi * t)) * 2.5, 1
-        front = walk_leg(t, cx + 3, knee_y, foot_y)
-        back = walk_leg(t + 0.5, cx - 3, knee_y, foot_y)
+        front = walk_foot(t, cx + 5, foot_y)
+        back = walk_foot(t + 0.5, cx - 5, foot_y)
     elif pose == 'jump':
+        # Knees up, trailing leg extended: reads as airborne in silhouette alone.
         drop, lean = -1, 0
-        front = (cx + 11, knee_y - 14), (cx + 7, foot_y - 16)
-        back = (cx + 4, knee_y - 4), (cx + 16, foot_y - 4)
+        front = (cx + 9, foot_y - 21)
+        back = (cx + 18, foot_y - 6)
     elif pose == 'hurt':
         drop, lean = 3, -4
-        front = (cx + 8, knee_y), (cx + 13, foot_y)
-        back = (cx - 10, knee_y), (cx - 17, foot_y)
+        front = (cx + 14, foot_y)
+        back = (cx - 18, foot_y)
     else:
-        front = (cx + 6, knee_y), (cx + 9, foot_y)
-        back = (cx - 5, knee_y), (cx - 9, foot_y)
+        front = (cx + 10, foot_y)
+        back = (cx - 10, foot_y)
 
     top = hip_y + drop
     ty = 45 + drop
 
-    leg(pc, (cx - 3, top), back[0], back[1], base, back=True)
-    leg(pc, (cx + 3, top), front[0], front[1], base)
-    pc.limb((cx - 1 + lean, ty + 11), (cx + 8 + lean, ty + 32), 11.5, mul(base, 0.70)) # support arm
-    pc.rr((cx - 16, top - 13, cx + 16, top + 5), 5.5, mul(base, 0.9))                  # hips
-    pc.rr((cx - 16 + lean, ty, cx + 16 + lean, top - 5), 8, base)                      # torso
+    # Only the feet are placed; the knees are solved from them.
+    leg(pc, (cx - 5, top), back, base, back=True)
+    leg(pc, (cx + 5, top), front, base)
+    pc.limb((cx - 1 + lean, ty + 11), (cx + 9 + lean, ty + 34), 13.5, mul(base, 0.70)) # support arm
+    pc.rr((cx - 20, top - 14, cx + 20, top + 6), 7, mul(base, 0.9))                    # hips
+    pc.rr((cx - 20 + lean, ty, cx + 20 + lean, top - 4), 10, base)                     # torso
 
     # Clip the pattern to the cloth: blotches over the rig or the face would be
     # paint, not camouflage.
@@ -231,18 +275,15 @@ def body(seat_rgb01, pose, seed):
     img.alpha_composite(cloth)
     p = Pen(img)
 
-    boot(p, back[1], back=True)
-    boot(p, front[1])
-
     # Chest rig and belt kit, over the camouflage and deliberately not patterned.
-    p.rr((cx - 13 + lean, ty + 7, cx + 14 + lean, top - 20), 4, RIG)
-    p.rr((cx - 9 + lean, ty + 17, cx - 2 + lean, ty + 29), 1.5, RIG_DARK)
-    p.rr((cx + 2 + lean, ty + 17, cx + 9 + lean, ty + 29), 1.5, RIG_DARK)
-    p.rr((cx - 13 + lean, ty + 11, cx + 14 + lean, ty + 14), 1, RIG_LIT)
-    p.rr((cx - 16 + lean, ty + 2, cx + 16 + lean, ty + 7), 2, STRAP)     # shoulder straps
-    p.rr((cx - 16, top - 12, cx + 16, top - 6), 2, STRAP)                # belt
-    p.rr((cx + 5, top + 2, cx + 15, top + 17), 2.5, RIG_DARK)            # dump pouch
-    p.rr((cx - 15, top - 4, cx - 8, top + 6), 2, RIG_DARK)               # rear pouch
+    p.rr((cx - 16 + lean, ty + 7, cx + 17 + lean, top - 20), 5, RIG)
+    p.rr((cx - 11 + lean, ty + 17, cx - 2 + lean, ty + 30), 2, RIG_DARK)
+    p.rr((cx + 2 + lean, ty + 17, cx + 11 + lean, ty + 30), 2, RIG_DARK)
+    p.rr((cx - 16 + lean, ty + 11, cx + 17 + lean, ty + 14), 1, RIG_LIT)
+    p.rr((cx - 20 + lean, ty + 2, cx + 20 + lean, ty + 8), 2.5, STRAP)   # shoulder straps
+    p.rr((cx - 20, top - 13, cx + 20, top - 6), 2.5, STRAP)              # belt
+    p.rr((cx + 6, top + 2, cx + 18, top + 19), 3, RIG_DARK)              # dump pouch
+    p.rr((cx - 19, top - 4, cx - 10, top + 7), 2.5, RIG_DARK)            # rear pouch
 
     p.rr((cx + 1 + lean, ty - 9, cx + 8 + lean, ty + 3), 3.5, SKIN_DARK) # neck
     head(p, cx + 1 + lean, ty - 24, tones)
