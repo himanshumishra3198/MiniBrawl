@@ -66,7 +66,9 @@ namespace MiniBrawl.Networking.Replication
              * re-fire past ticks using whatever is held now — pick up a shotgun and the last ten
              * ticks of rifle fire would be replayed as buckshot. */
             public byte WeaponKind;
-            public int WeaponAmmo;
+            public int ShotgunAmmo;
+            public int PistolAmmo;
+            public bool SwitchHeld;
 
             public byte Health;
             public bool Grounded;
@@ -86,7 +88,9 @@ namespace MiniBrawl.Networking.Replication
                 Grounded = state.Grounded;
                 WeaponCooldown = weapon.Cooldown;
                 WeaponKind = (byte)weapon.Kind;
-                WeaponAmmo = weapon.Ammo;
+                ShotgunAmmo = weapon.ShotgunAmmo;
+                PistolAmmo = weapon.PistolAmmo;
+                SwitchHeld = weapon.SwitchHeld;
                 Absent = false;
                 _tick = 0;
             }
@@ -97,7 +101,9 @@ namespace MiniBrawl.Networking.Replication
                 // Fully qualified: the field below is also called WeaponKind, and inside this
                 // struct the field name wins over the type name.
                 Kind = (MiniBrawl.Gameplay.Weapons.WeaponKind)WeaponKind,
-                Ammo = WeaponAmmo,
+                ShotgunAmmo = ShotgunAmmo,
+                PistolAmmo = PistolAmmo,
+                SwitchHeld = SwitchHeld,
             };
 
             public PlayerState ToState() => new PlayerState
@@ -344,7 +350,8 @@ namespace MiniBrawl.Networking.Replication
                 m_Weapon = WeaponState.Starting;
             }
 
-            if (!m_State.IsDead && WeaponSim.Step(ref m_Weapon, m_LastInput.Fire, delta))
+            if (!m_State.IsDead &&
+                WeaponSim.Step(ref m_Weapon, m_LastInput.Fire, m_LastInput.Switch, delta))
                 FireShot(m_LastInput.AimDirection, state, md.GetTick());
 
             // Record what we predicted for this tick, but only on the live tick — during a replay
@@ -542,6 +549,7 @@ namespace MiniBrawl.Networking.Replication
 
             if (m_Visual != null)
             {
+                m_Visual.Weapon = (int)m_Weapon.Kind;
                 m_Visual.Seat = seat;
                 m_Visual.SeatColor = m_BaseColor;
                 m_Visual.Hidden = dead;

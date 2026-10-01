@@ -27,7 +27,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.34, y: 0.34, z: 1}
+  m_LocalScale: {x: 0.62, y: 0.62, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5241684431958837622}
@@ -291,6 +291,10 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 0}
   Body: {fileID: 5295066266942120973}
   Icon: {fileID: 947175469516400483}
+  Icons:
+  - {fileID: 21300000, guid: 266288f50ad024af3a7c29fdba6a668f, type: 3}
+  - {fileID: 21300000, guid: c30d5539cf25c4e14b2557fd318321a5, type: 3}
+  - {fileID: 21300000, guid: 3ba110f67ff0e4e9393173882793e479, type: 3}
   Radius: 0.9
-  RespawnSeconds: 14
+  RespawnSeconds: 28
   HealAmount: 35

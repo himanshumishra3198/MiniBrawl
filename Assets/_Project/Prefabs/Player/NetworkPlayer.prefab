@@ -264,7 +264,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 11
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: fe8bf0825b8134615a784a3e65261bc0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: e56e8281dd7d644b2bd75155cfb7fecb, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -575,7 +575,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: def6ee509287a4236b658a45717b3183, type: 3}
     Jump: {fileID: 21300000, guid: b9794effb1e7440718605ed7658d6f4d, type: 3}
     Hurt: {fileID: 21300000, guid: 9755c91b697db47e4afeb6ee07960573, type: 3}
-    Arm: {fileID: 21300000, guid: fe8bf0825b8134615a784a3e65261bc0, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: e56e8281dd7d644b2bd75155cfb7fecb, type: 3}
+    - {fileID: 21300000, guid: 80cf9adca4a644c8f8ce82f24667e06d, type: 3}
+    - {fileID: 21300000, guid: 570fa03abf39742b996f01899d1becd2, type: 3}
   - Stand: {fileID: 21300000, guid: c67d88479d3cf4cf680f96b5d547c550, type: 3}
     Walk:
     - {fileID: 21300000, guid: 5757804bdca3c4ddb9e094bb2bed6da2, type: 3}
@@ -588,7 +591,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: b53caf13d35d84ee5885a0d758334c8b, type: 3}
     Jump: {fileID: 21300000, guid: f2c62e409e7954973a7fc52ed193ff64, type: 3}
     Hurt: {fileID: 21300000, guid: 74f9d422cc655438e8025c08a2f82f0c, type: 3}
-    Arm: {fileID: 21300000, guid: f9749261149284438824b40960a80b9c, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: f8466ad11085345bca0e89b4b8c8411c, type: 3}
+    - {fileID: 21300000, guid: bc07f88938f05486fbbf5e4d4e80ff86, type: 3}
+    - {fileID: 21300000, guid: 836b1922ac5df4b9ea04a9c95b3b0049, type: 3}
   - Stand: {fileID: 21300000, guid: b7f4e35be46b148b897cd01be07f45f7, type: 3}
     Walk:
     - {fileID: 21300000, guid: 624f23c8293e04022ae29a59c833b77c, type: 3}
@@ -601,7 +607,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 90737aeb7ee4b4800a58dff9f40476de, type: 3}
     Jump: {fileID: 21300000, guid: e8472feec22244cafbcf67452c5cfafb, type: 3}
     Hurt: {fileID: 21300000, guid: 2251f0906eac74a84ab875eea7125ec6, type: 3}
-    Arm: {fileID: 21300000, guid: 776848d47b4ad41208e9a617bb482f33, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: cc44da7ce8914403faa7b6bd971bbad8, type: 3}
+    - {fileID: 21300000, guid: 4a1ac8517f5934a8ea29dbeb5209be4a, type: 3}
+    - {fileID: 21300000, guid: e394cbadee981472390327ef016e8485, type: 3}
   - Stand: {fileID: 21300000, guid: 8ee6bea81a9104fd98eb5807266b0db4, type: 3}
     Walk:
     - {fileID: 21300000, guid: 0888e7d5f0a304bf098b98a98b03d257, type: 3}
@@ -614,7 +623,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: b1de87b90845246c5b344716bf7fc156, type: 3}
     Jump: {fileID: 21300000, guid: 98eadfc84c5a344718fe874854be0619, type: 3}
     Hurt: {fileID: 21300000, guid: a212d7b1c1e3d4f90a59151a535be6c5, type: 3}
-    Arm: {fileID: 21300000, guid: be6418380ce4344ba9d80ab9312314ce, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: 10a71da2ab724489991bc4c7cf07caf5, type: 3}
+    - {fileID: 21300000, guid: ae4912e2c56474d80b2114d9285146de, type: 3}
+    - {fileID: 21300000, guid: c4e54bb07b31849c48d858868f342a66, type: 3}
   - Stand: {fileID: 21300000, guid: 39dbcd908a2b34b43baa38a47c07ca91, type: 3}
     Walk:
     - {fileID: 21300000, guid: 85be65d4014b946f8b637757eac46d40, type: 3}
@@ -627,7 +639,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 87f3395d71dcf4e46b8e00fa54d31e24, type: 3}
     Jump: {fileID: 21300000, guid: 95952cea7c0d0445eaa5fb404b45d608, type: 3}
     Hurt: {fileID: 21300000, guid: dacee09f40a7d4af9a4ed3ee3df08298, type: 3}
-    Arm: {fileID: 21300000, guid: b4bcab5ec96a7494f85f348ab5e48540, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: 75a8142a573e549fcabc2dab0dbf5043, type: 3}
+    - {fileID: 21300000, guid: 061b737dd222043ca8cfb06ce99feaf1, type: 3}
+    - {fileID: 21300000, guid: ccb1d5db7a8d54dc49a32199ac8cf529, type: 3}
   - Stand: {fileID: 21300000, guid: 33d1731242d20498d82c4b1a2235f8b1, type: 3}
     Walk:
     - {fileID: 21300000, guid: 43b366b098ad1407dae088f9627dfde1, type: 3}
@@ -640,7 +655,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: e49550ab1047a49e69b39de813c0fb02, type: 3}
     Jump: {fileID: 21300000, guid: dddacdf7f77024d0ea0af710a2d6d6a3, type: 3}
     Hurt: {fileID: 21300000, guid: 0db28ff48ce184adc83770c9768cda94, type: 3}
-    Arm: {fileID: 21300000, guid: e73ae625c1258435d82364de128a43a2, type: 3}
+    Arms:
+    - {fileID: 21300000, guid: e64f0a9a1c47444b29713687cb26e2e6, type: 3}
+    - {fileID: 21300000, guid: 15d344f2fd89e4b08bd9c210a584fdcd, type: 3}
+    - {fileID: 21300000, guid: aa7b11a674b654e8dadea90e66f7f2c1, type: 3}
   Body: {fileID: 8523281559750010598}
   Gun: {fileID: 1886053861769198001}
   Jet: {fileID: 8585061536250143589}
@@ -650,7 +668,12 @@ MonoBehaviour:
   JetScale: {x: 0.34, y: 0.55}
   MuzzleScale: 0.4
   GunResponse: 22
+  MuzzleReach:
+  - 1.04
+  - 0.88
+  - 0.58
   Seat: 0
+  Weapon: 0
   SeatColor: {r: 1, g: 1, b: 1, a: 1}
   Hidden: 0
   Flashing: 0

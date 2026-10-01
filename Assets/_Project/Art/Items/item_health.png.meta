@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 3bfd350033efb4e0b9bce40dbec15089
+guid: 266288f50ad024af3a7c29fdba6a668f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4995086436515345966
-    second: icon_fire_0
+      213: 3318678534319221516
+    second: item_health_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: icon_fire_0
+      name: item_health_0
       rect:
         serializedVersion: 2
-        x: 1
-        y: 0
-        width: 46
-        height: 48
+        x: 3
+        y: 6
+        width: 58
+        height: 52
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e267ede16ac125540800000000000000
-      internalID: 4995086436515345966
+      spriteID: c0bafc93b805e0e20800000000000000
+      internalID: 3318678534319221516
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      icon_fire_0: 4995086436515345966
+      item_health_0: 3318678534319221516
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

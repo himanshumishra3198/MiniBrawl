@@ -82,7 +82,7 @@ namespace MiniBrawl.Gameplay.Tests
             AssertAllocatesNothing(() =>
             {
                 for (int i = 0; i < 100; i++)
-                    WeaponSim.Step(ref weapon, true, 1f / 30f);
+                    WeaponSim.Step(ref weapon, true, false, 1f / 30f);
             });
         }
 

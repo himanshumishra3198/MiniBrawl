@@ -13,9 +13,14 @@ namespace MiniBrawl.Gameplay.Player
         public const byte BtnJetpack = 1 << 0;
         public const byte BtnFire    = 1 << 1;
         public const byte BtnGrenade = 1 << 2;
+        public const byte BtnSwitch  = 1 << 3;
 
         public bool Jetpack => (Buttons & BtnJetpack) != 0;
         public bool Fire    => (Buttons & BtnFire)    != 0;
+
+        /// <summary>Held, not pressed. WeaponSim finds the edge, because only the simulation
+        /// knows what the button was doing on the previous tick after a rollback.</summary>
+        public bool Switch  => (Buttons & BtnSwitch)  != 0;
         public float MoveAxis => Mathf.Clamp(MoveX / 127f, -1f, 1f);
 
         /// <summary>Aim direction, unpacked from the quantised angle.</summary>

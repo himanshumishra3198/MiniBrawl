@@ -145,7 +145,7 @@ public static class PrototypeSceneBuilder
 
         // Seat 0's arm is a placeholder; PlayerVisual swaps in the right seat's once the roster
         // says which seat this is.
-        visual.Gun = MakeRenderer("Gun", g, GameAssets.Arm(0), 11);
+        visual.Gun = MakeRenderer("Gun", g, GameAssets.Arm(0, 0), 11);
 
         // Pivoted at its base and turned to hang downwards, so lengthening the flame grows it away
         // from the feet instead of up through the body.

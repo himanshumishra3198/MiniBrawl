@@ -1,6 +1,7 @@
 using FishNet;
 using FishNet.Managing;
 using MiniBrawl.Config;
+using MiniBrawl.Gameplay.Weapons;
 using MiniBrawl.Networking.Replication;
 using MiniBrawl.Platform;
 using UnityEngine;
@@ -86,11 +87,13 @@ namespace MiniBrawl.Networking.Session
 
             // Ammo earns its place here: a pistol that quietly became a rifle when the magazine
             // ran out is otherwise only noticeable by the damage dropping.
-            string weapon = m_Local == null
-                ? ""
-                : m_Local.Weapon.Ammo < 0
-                    ? $"  {m_Local.Weapon.Kind}"
-                    : $"  {m_Local.Weapon.Kind} x{m_Local.Weapon.Ammo}";
+            string weapon = "";
+            if (m_Local != null)
+            {
+                WeaponState held = m_Local.Weapon;
+                int rounds = held.AmmoFor(held.Kind);
+                weapon = rounds < 0 ? $"  {held.Kind}" : $"  {held.Kind} x{rounds}";
+            }
 
             string local = m_Local == null
                 ? "no local player"

@@ -14,7 +14,7 @@ namespace MiniBrawl.Gameplay.Tests
         public void HoldingFire_ShootsOnTheFirstTick()
         {
             WeaponState state = WeaponState.Starting;
-            Assert.IsTrue(WeaponSim.Step(ref state, true, k_Dt));
+            Assert.IsTrue(WeaponSim.Step(ref state, true, false, k_Dt));
         }
 
         [Test]
@@ -24,7 +24,7 @@ namespace MiniBrawl.Gameplay.Tests
             int shots = 0;
 
             for (int i = 0; i < 30; i++)                // one second of held trigger
-                if (WeaponSim.Step(ref state, true, k_Dt)) shots++;
+                if (WeaponSim.Step(ref state, true, false, k_Dt)) shots++;
 
             Assert.AreEqual(5, shots, "1 s at a 0.2 s interval is 5 shots");
         }
@@ -34,11 +34,11 @@ namespace MiniBrawl.Gameplay.Tests
         {
             WeaponState state = WeaponState.Starting;
 
-            Assert.IsTrue(WeaponSim.Step(ref state, true, k_Dt));
+            Assert.IsTrue(WeaponSim.Step(ref state, true, false, k_Dt));
             for (int i = 0; i < 10; i++)
-                Assert.IsFalse(WeaponSim.Step(ref state, false, k_Dt), "no trigger, no shot");
+                Assert.IsFalse(WeaponSim.Step(ref state, false, false, k_Dt), "no trigger, no shot");
 
-            Assert.IsTrue(WeaponSim.Step(ref state, true, k_Dt),
+            Assert.IsTrue(WeaponSim.Step(ref state, true, false, k_Dt),
                 "cooldown elapsed while the trigger was released, so the next pull fires at once");
         }
 
@@ -93,15 +93,15 @@ namespace MiniBrawl.Gameplay.Tests
             WeaponSim.Equip(ref state, WeaponKind.Pistol);
 
             int ammo = WeaponConfig.For(WeaponKind.Pistol).Ammo;
-            Assert.AreEqual(ammo, state.Ammo, "equipping should fill the magazine");
+            Assert.AreEqual(ammo, state.AmmoFor(WeaponKind.Pistol), "equipping fills the magazine");
 
             int fired = 0;
             for (int i = 0; i < 2000 && state.Kind == WeaponKind.Pistol; i++)
-                if (WeaponSim.Step(ref state, true, k_Dt)) fired++;
+                if (WeaponSim.Step(ref state, true, false, k_Dt)) fired++;
 
             Assert.AreEqual(ammo, fired, "the magazine should hold exactly its stated rounds");
             Assert.AreEqual(WeaponKind.Rifle, state.Kind, "an empty weapon falls back to the rifle");
-            Assert.AreEqual(-1, state.Ammo, "and the rifle never runs out");
+            Assert.IsFalse(state.Holds(WeaponKind.Pistol), "and is gone from the inventory");
         }
 
         [Test]
@@ -109,10 +109,58 @@ namespace MiniBrawl.Gameplay.Tests
         {
             WeaponState state = WeaponState.Starting;
 
-            for (int i = 0; i < 600; i++) WeaponSim.Step(ref state, true, k_Dt);
+            for (int i = 0; i < 600; i++) WeaponSim.Step(ref state, true, false, k_Dt);
 
             Assert.AreEqual(WeaponKind.Rifle, state.Kind);
-            Assert.AreEqual(-1, state.Ammo);
+            Assert.AreEqual(-1, state.AmmoFor(WeaponKind.Rifle));
+        }
+
+        [Test]
+        public void Switching_WalksOnlyWhatIsHeld()
+        {
+            WeaponState state = WeaponState.Starting;
+
+            // Nothing but the rifle: switching has nowhere to go and must not strand the player
+            // holding a weapon they do not have.
+            WeaponSim.Cycle(ref state);
+            Assert.AreEqual(WeaponKind.Rifle, state.Kind);
+
+            WeaponSim.Equip(ref state, WeaponKind.Shotgun);
+            WeaponSim.Cycle(ref state);
+            Assert.AreEqual(WeaponKind.Rifle, state.Kind, "rifle then back round to the shotgun");
+
+            WeaponSim.Cycle(ref state);
+            Assert.AreEqual(WeaponKind.Shotgun, state.Kind);
+        }
+
+        [Test]
+        public void Switching_IsEdgeTriggered()
+        {
+            WeaponState state = WeaponState.Starting;
+            WeaponSim.Equip(ref state, WeaponKind.Pistol);
+            WeaponSim.Equip(ref state, WeaponKind.Shotgun);
+
+            // Holding the button down must switch once, not once per tick — otherwise a half
+            // second of thumb cycles the inventory fifteen times.
+            WeaponKind after = WeaponKind.Shotgun;
+            for (int i = 0; i < 20; i++)
+            {
+                WeaponSim.Step(ref state, false, true, k_Dt);
+                if (i == 0) after = state.Kind;
+            }
+
+            Assert.AreNotEqual(WeaponKind.Shotgun, after, "the first press should switch");
+            Assert.AreEqual(after, state.Kind, "holding it should not keep switching");
+        }
+
+        [Test]
+        public void PickingUpAWeapon_KeepsTheRifle()
+        {
+            WeaponState state = WeaponState.Starting;
+            WeaponSim.Equip(ref state, WeaponKind.Shotgun);
+
+            Assert.AreEqual(WeaponKind.Shotgun, state.Kind, "a crate puts the weapon in your hands");
+            Assert.IsTrue(state.Holds(WeaponKind.Rifle), "but the rifle is never given up");
         }
 
         [Test]

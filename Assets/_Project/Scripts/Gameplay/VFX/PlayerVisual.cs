@@ -33,7 +33,10 @@ namespace MiniBrawl.Gameplay.VFX
 
             public Sprite Jump;
             public Sprite Hurt;
-            public Sprite Arm;
+
+            /// <summary>One arm sprite per weapon, in WeaponKind order. The weapon is drawn as
+            /// part of the arm, so changing weapon changes this sprite rather than adding one.</summary>
+            public Sprite[] Arms;
         }
 
         [Tooltip("One per seat, in PlayerColors order.")]
@@ -60,8 +63,15 @@ namespace MiniBrawl.Gameplay.VFX
                  "only changes once per tick, so without this the gun steps at the tick rate.")]
         public float GunResponse = 22f;
 
+        [Tooltip("Muzzle distance from the shoulder for each weapon, in WeaponKind order. These " +
+                 "match the drawn barrels — a pistol must not fire from where a rifle ends.")]
+        public float[] MuzzleReach = { 1.04f, 0.88f, 0.58f };
+
         [Header("Set by whoever owns match identity")]
         public int Seat;
+
+        /// <summary>Index into Skin.Arms: which weapon is in hand.</summary>
+        public int Weapon;
         public Color SeatColor = Color.white;
         public bool Hidden;
         public bool Flashing;
@@ -169,8 +179,22 @@ namespace MiniBrawl.Gameplay.VFX
             if (pose != null) Body.sprite = pose;
             Body.flipX = facingLeft;
 
-            // The arm belongs to the same seat as the body it is attached to.
-            if (Gun != null && skin.Arm != null) Gun.sprite = skin.Arm;
+            // The arm belongs to the same seat as the body, and carries whichever weapon is
+            // currently held — the gun is drawn into the arm sprite, not laid on top of it.
+            if (Gun != null && skin.Arms != null && skin.Arms.Length > 0)
+            {
+                int index = Mathf.Clamp(Weapon, 0, skin.Arms.Length - 1);
+                if (skin.Arms[index] != null) Gun.sprite = skin.Arms[index];
+            }
+
+            // The flash and the bullet origin follow the barrel of whatever is held.
+            if (Muzzle != null && MuzzleReach.Length > 0)
+            {
+                float reach = MuzzleReach[Mathf.Clamp(Weapon, 0, MuzzleReach.Length - 1)];
+                Vector3 at = Muzzle.transform.localPosition;
+                if (!Mathf.Approximately(at.x, reach))
+                    Muzzle.transform.localPosition = new Vector3(reach, at.y, at.z);
+            }
 
             /* A white flash reads as "that landed" better than a colour shift does, and the seat
              * tint is what identifies the player, so health is shown by draining towards red only

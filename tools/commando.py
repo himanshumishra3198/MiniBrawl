@@ -291,44 +291,94 @@ def body(seat_rgb01, pose, seed):
     return img.resize((W, H), Image.LANCZOS)
 
 
-# --- weapon arm -------------------------------------------------------------
+# --- weapon arms ---------------------------------------------------------------
 GW, GH = 136, 53
 GRIP = (24, 27)
 
+# Where each barrel ends, in sprite pixels. PlayerVisual puts the muzzle flash and
+# the bullet origin here, so a pistol does not fire from a foot past its own slide.
+MUZZLE_PX = {'rifle': 128, 'shotgun': 112, 'pistol': 82}
+WEAPONS = ('rifle', 'shotgun', 'pistol')
 
-def weapon_arm(seat_rgb01, seed):
+
+def draw_rifle(p, sx, sy):
+    """Long, with an optic. The weapon everyone starts holding."""
+    st = sx + 4
+    p.rr((st, sy - 4, st + 24, sy + 3), 2.5, mul(GUNMETAL, 0.9))          # stock
+    p.rr((st + 21, sy - 6, st + 56, sy + 3), 2.5, GUNMETAL)               # receiver
+    p.rr((st + 28, sy - 11, st + 43, sy - 5), 1.5, mul(GUNMETAL, 1.3))    # optic
+    p.rr((st + 33, sy - 14, st + 39, sy - 9), 1, mul(GUNMETAL, 1.15))
+    p.rr((st + 34, sy + 3, st + 46, sy + 19), 2, mul(GUNMETAL, 0.8))      # magazine
+    p.rr((st + 55, sy - 3, st + 95, sy + 1), 2, METAL)                    # barrel
+    p.rr((st + 59, sy - 5, st + 77, sy + 3), 1.5, mul(GUNMETAL, 1.05))    # handguard
+    p.rr((st + 91, sy - 5, st + 100, sy + 3), 1.5, METAL_LIT)             # muzzle
+    return (st + 35, sy + 12), (st + 67, sy + 7)
+
+
+def draw_shotgun(p, sx, sy):
+    """Shorter and heavier, with a pump under the barrel and no optic.
+
+    The silhouette has to say "shotgun" at a glance, because the thing that makes
+    it dangerous — a wide cone and eight units of reach — is invisible until
+    somebody is already too close.
+    """
+    st = sx + 4
+    p.rr((st, sy - 6, st + 26, sy + 4), 4, mul(GUNMETAL, 0.82))           # thick stock
+    p.rr((st + 23, sy - 7, st + 54, sy + 5), 3, GUNMETAL)                 # receiver
+    p.rr((st + 52, sy - 5, st + 84, sy + 1), 3, METAL)                    # fat barrel
+    p.rr((st + 50, sy + 3, st + 74, sy + 9), 2.5, mul(GUNMETAL, 1.1))     # pump
+    p.rr((st + 80, sy - 6, st + 88, sy + 2), 2, METAL_LIT)                # wide muzzle
+    return (st + 34, sy + 13), (st + 60, sy + 9)
+
+
+def draw_pistol(p, sx, sy):
+    """Small, held out at arm's length, no stock and nothing to grip up front."""
+    st = sx + 4
+    p.rr((st + 30, sy - 5, st + 56, sy + 3), 2, GUNMETAL)                 # slide
+    p.rr((st + 33, sy - 7, st + 48, sy - 4), 1, mul(GUNMETAL, 1.25))      # sight rib
+    p.rr((st + 32, sy + 3, st + 42, sy + 17), 2.5, mul(GUNMETAL, 0.85))   # grip
+    p.rr((st + 54, sy - 4, st + 58, sy + 2), 1.5, METAL_LIT)              # muzzle
+    return (st + 36, sy + 10), None                                       # no support hand
+
+
+DRAW = {'rifle': draw_rifle, 'shotgun': draw_shotgun, 'pistol': draw_pistol}
+
+
+def weapon_arm(seat_rgb01, seed, kind='rifle'):
+    """One seat's arms holding one weapon.
+
+    Both arms and the gun are a single sprite that pivots at the shoulder, so the
+    muzzle stays on the end of the barrel through a full circle of aim. A weapon
+    drawn separately and laid on top drifts away from the hands the moment it
+    turns.
+    """
     tones = uniform_tones(seat_rgb01)
     base = tones[0]
 
     sleeve = Image.new('RGBA', (GW * S, GH * S), (0, 0, 0, 0))
     ps = Pen(sleeve)
     sx, sy = GRIP
-    st = sx + 4
-
-    ps.limb((sx, sy), (sx + 19, sy + 15), 13, mul(base, 0.95))
-    ps.limb((sx + 19, sy + 15), (st + 33, sy + 11), 11.5, base)
-    ps.limb((sx + 5, sy + 8), (sx + 32, sy + 20), 9.5, mul(base, 1.12))
-    ps.limb((sx + 32, sy + 20), (st + 66, sy + 7), 9.5, mul(base, 1.12))
-
-    camo = camouflage((GW * S, GH * S), tones, seed)
-    sleeve.paste(camo, (0, 0), ImageChops.multiply(camo.getchannel('A'), sleeve.getchannel('A')))
 
     img = Image.new('RGBA', (GW * S, GH * S), (0, 0, 0, 0))
     p = Pen(img)
 
-    # Rifle under the arms, so the hands read as gripping it.
-    p.rr((st, sy - 4, st + 24, sy + 3), 2.5, mul(GUNMETAL, 0.9))         # stock
-    p.rr((st + 21, sy - 6, st + 56, sy + 3), 2.5, GUNMETAL)              # receiver
-    p.rr((st + 28, sy - 11, st + 43, sy - 5), 1.5, mul(GUNMETAL, 1.3))   # optic
-    p.rr((st + 33, sy - 14, st + 39, sy - 9), 1, mul(GUNMETAL, 1.15))
-    p.rr((st + 34, sy + 3, st + 46, sy + 19), 2, mul(GUNMETAL, 0.8))     # magazine
-    p.rr((st + 55, sy - 3, st + 95, sy + 1), 2, METAL)                   # barrel
-    p.rr((st + 59, sy - 5, st + 77, sy + 3), 1.5, mul(GUNMETAL, 1.05))   # handguard
-    p.rr((st + 91, sy - 5, st + 100, sy + 3), 1.5, METAL_LIT)            # muzzle
+    # Gun first, arms over it, so the hands read as gripping rather than floating.
+    trigger, support = DRAW[kind](p, sx, sy)
 
+    ps.limb((sx, sy), (sx + 19, sy + 15), 13, mul(base, 0.95))            # upper arm
+    ps.limb((sx + 19, sy + 15), (trigger[0] - 4, trigger[1] - 2), 11.5, base)
+
+    if support is not None:
+        ps.limb((sx + 5, sy + 8), (sx + 32, sy + 20), 9.5, mul(base, 1.12))
+        ps.limb((sx + 32, sy + 20), support, 9.5, mul(base, 1.12))
+
+    camo = camouflage((GW * S, GH * S), tones, seed)
+    sleeve.paste(camo, (0, 0), ImageChops.multiply(camo.getchannel('A'), sleeve.getchannel('A')))
     img.alpha_composite(sleeve)
-    p.ell((st + 29, sy + 6, st + 41, sy + 18), STRAP)                    # trigger hand
-    p.ell((st + 61, sy + 1, st + 73, sy + 13), STRAP)                    # support hand
+
+    p.ell((trigger[0] - 6, trigger[1] - 6, trigger[0] + 6, trigger[1] + 6), STRAP)
+    if support is not None:
+        p.ell((support[0] - 6, support[1] - 6, support[0] + 6, support[1] + 6), STRAP)
 
     return img.resize((GW, GH), Image.LANCZOS)
 
@@ -349,6 +399,10 @@ if __name__ == '__main__':
     for i, (name, rgb) in enumerate(SEATS):
         for pose in POSES:
             body(rgb, pose, seed=i * 17 + 3).save(f'gen/Characters/player{i}_{pose}.png')
-        weapon_arm(rgb, seed=i * 17 + 3).save(f'gen/Weapons/arm{i}.png')
+        for kind in WEAPONS:
+            weapon_arm(rgb, seed=i * 17 + 3, kind=kind).save(f'gen/Weapons/arm{i}_{kind}.png')
+
     print(f'body {W}x{H}, arm {GW}x{GH} pivot {GRIP}')
-    print(f'wrote {len(SEATS) * len(POSES)} frames + {len(SEATS)} arms')
+    for kind in WEAPONS:
+        print(f'  {kind:8s} muzzle {(MUZZLE_PX[kind] - GRIP[0]) / 100.0:.3f} units from the shoulder')
+    print(f'wrote {len(SEATS) * len(POSES)} frames + {len(SEATS) * len(WEAPONS)} arms')

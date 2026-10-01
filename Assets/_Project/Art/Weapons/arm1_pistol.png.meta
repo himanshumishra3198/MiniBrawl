@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e73ae625c1258435d82364de128a43a2
+guid: 836b1922ac5df4b9ea04a9c95b3b0049
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6404173865926696779
-    second: arm5_0
+      213: 3485037240610820568
+    second: arm1_pistol_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -87,13 +87,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: arm5_0
+      name: arm1_pistol_0
       rect:
         serializedVersion: 2
         x: 14
-        y: 0
-        width: 118
-        height: 44
+        y: 1
+        width: 76
+        height: 36
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -102,8 +102,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5b06999bccdcf17a0800000000000000
-      internalID: -6404173865926696779
+      spriteID: 8d19d93e7e65d5030800000000000000
+      internalID: 3485037240610820568
       vertices: []
       indices: 
       edges: []
@@ -122,7 +122,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      arm5_0: -6404173865926696779
+      arm1_pistol_0: 3485037240610820568
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

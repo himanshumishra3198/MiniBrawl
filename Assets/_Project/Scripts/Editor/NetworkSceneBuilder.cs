@@ -16,6 +16,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.OnScreen;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
@@ -215,7 +216,7 @@ public static class NetworkSceneBuilder
         // has to say "this is a crate, not scenery".
         var icon = new GameObject("Icon");
         icon.transform.SetParent(go.transform, false);
-        icon.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
+        icon.transform.localScale = new Vector3(0.62f, 0.62f, 1f);
         var iconRenderer = icon.AddComponent<SpriteRenderer>();
         iconRenderer.sprite = square;
         iconRenderer.sortingOrder = 7;
@@ -223,6 +224,12 @@ public static class NetworkSceneBuilder
         var pickup = go.GetComponent<Pickup>();
         pickup.Body = bodyRenderer;
         pickup.Icon = iconRenderer;
+        pickup.Icons = new[]
+        {
+            GameAssets.Item("health"),
+            GameAssets.Item("shotgun"),
+            GameAssets.Item("pistol"),
+        };
 
         GameObject saved = PrefabUtility.SaveAsPrefabAsset(go, k_PickupPrefabPath);
         Object.DestroyImmediate(go);
@@ -288,6 +295,20 @@ public static class NetworkSceneBuilder
         Text leaveLabel = PrototypeSceneBuilder.Label("Label", leaveImage.transform, 34, TextAnchor.MiddleCenter);
         PrototypeSceneBuilder.Stretch(leaveLabel.rectTransform);
         leaveLabel.text = "LEAVE";
+
+        /* Weapon swap, bottom-left above the move stick. On-screen controls drive a virtual
+         * gamepad, so this button and a real controller's west face button are the same control
+         * as far as the input source is concerned. */
+        Image swapImage = PrototypeSceneBuilder.MakeImage("SwapButton", canvas, GameAssets.Ui("button_round"),
+            new Color(1f, 1f, 1f, 0.5f), new Vector2(0f, 0f), new Vector2(330f, 150f),
+            new Vector2(150f, 150f));
+        var swap = swapImage.gameObject.AddComponent<OnScreenButton>();
+        swap.controlPath = "<Gamepad>/buttonWest";
+
+        Image swapIcon = PrototypeSceneBuilder.MakeImage("Icon", swapImage.transform,
+            GameAssets.Ui("icon_fire"), new Color(1f, 1f, 1f, 0.85f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(74f, 74f));
+        swapIcon.raycastTarget = false;
 
         var matchHud = canvasGo.AddComponent<MatchHud>();
         matchHud.LeaveButton = leaveButton;

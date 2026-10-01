@@ -30,10 +30,15 @@ namespace MiniBrawl.Networking.Match
         public SpriteRenderer Body;
         public SpriteRenderer Icon;
 
+        [Tooltip("One per PickupKind, in enum order: medikit, shotgun, pistol.")]
+        public Sprite[] Icons;
+
         [Tooltip("Picked up within this distance of a player's centre.")]
         public float Radius = 0.9f;
 
-        public float RespawnSeconds = 14f;
+        [Tooltip("A taken crate stays gone this long. Long enough that holding the spot it was " +
+                 "on is not a strategy by itself.")]
+        public float RespawnSeconds = 28f;
 
         [Tooltip("Health restored. Weapon crates ignore this.")]
         public int HealAmount = 35;
@@ -83,8 +88,20 @@ namespace MiniBrawl.Networking.Match
                 _ => k_Health,
             };
 
-            if (Body != null) Body.color = new Color(tint.r, tint.g, tint.b, 0.9f);
-            if (Icon != null) Icon.color = Color.white;
+            // Colour still backs the crate, but the icon is what says what is inside: colour is
+            // already carrying player identity, and a second colour code competing with it is
+            // not something anyone decodes while running past a ledge.
+            if (Body != null) Body.color = new Color(tint.r, tint.g, tint.b, 0.55f);
+
+            if (Icon != null)
+            {
+                Icon.color = Color.white;
+                if (Icons != null && Icons.Length > 0)
+                {
+                    int index = Mathf.Clamp((int)m_Kind.Value, 0, Icons.Length - 1);
+                    if (Icons[index] != null) Icon.sprite = Icons[index];
+                }
+            }
 
             // A slow bob, so a crate on a dark ledge is not mistaken for scenery.
             m_Bob += Time.deltaTime;

@@ -28,9 +28,25 @@ public static class GameAssets
     public static Sprite Character(int seat, string pose) =>
         ArtImport.Sprite($"{k_Art}/Characters/player{seat}_{pose}.png", ArtImport.CharacterPPU, k_Feet);
 
-    /// <summary>The firing arm and rifle for one seat, pivoting at the shoulder.</summary>
-    public static Sprite Arm(int seat) =>
-        ArtImport.Sprite($"{k_Art}/Weapons/arm{seat}.png", ArtImport.CharacterPPU, k_Shoulder);
+    /// <summary>Weapon names, in WeaponKind order.</summary>
+    static readonly string[] k_Weapons = { "rifle", "shotgun", "pistol" };
+
+    /// <summary>The firing arm, holding one weapon, pivoting at the shoulder.</summary>
+    public static Sprite Arm(int seat, int weapon) =>
+        ArtImport.Sprite($"{k_Art}/Weapons/arm{seat}_{k_Weapons[weapon]}.png",
+                         ArtImport.CharacterPPU, k_Shoulder);
+
+    /// <summary>Every weapon this seat could be holding, in WeaponKind order.</summary>
+    public static Sprite[] Arms(int seat)
+    {
+        var arms = new Sprite[k_Weapons.Length];
+        for (int i = 0; i < arms.Length; i++) arms[i] = Arm(seat, i);
+        return arms;
+    }
+
+    /// <summary>A crate icon: the medikit, or one of the weapons.</summary>
+    public static Sprite Item(string name) =>
+        ArtImport.Sprite($"{k_Art}/Items/item_{name}.png", 100f, new Vector2(0.5f, 0.5f));
 
     public static Sprite Particle(string name) => Particle(name, new Vector2(0.5f, 0.5f));
 
@@ -72,7 +88,7 @@ public static class GameAssets
                 Walk  = WalkCycle(seat),
                 Jump  = Character(seat, "jump"),
                 Hurt  = Character(seat, "hurt"),
-                Arm   = Arm(seat),
+                Arms  = Arms(seat),
             };
         }
         return skins;

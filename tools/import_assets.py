@@ -27,7 +27,8 @@ jobs = []
 for i in range(6):
     for pose in ['stand', 'jump', 'hurt'] + [f'walk{k}' for k in range(1, 9)]:
         jobs.append((f'{GEN}/Characters/player{i}_{pose}.png', f'Art/Characters/player{i}_{pose}.png'))
-    jobs.append((f'{GEN}/Weapons/arm{i}.png', f'Art/Weapons/arm{i}.png'))
+    for kind in ('rifle', 'shotgun', 'pistol'):
+        jobs.append((f'{GEN}/Weapons/arm{i}_{kind}.png', f'Art/Weapons/arm{i}_{kind}.png'))
 
 # Level surface. Tiled across each block rather than stretched, and tinted dark at runtime:
 # Kenney's tiles are light, and the level has to stay darker than the players standing on it.
@@ -37,6 +38,11 @@ jobs.append((f'{TILES}/castleCenter.png', 'Art/Tiles/platform.png'))
 # Island dressing. Palms are drawn by tools/island.py because every one of the
 # thirty-five trees in Kenney's background pack is a conifer, a cactus or a round
 # broadleaf, and none of those say island.
+# Crate icons, drawn by tools/items.py. Colour alone is already doing the job of
+# saying which player is which, so a crate needs a shape to say what is in it.
+for name in ('health', 'shotgun', 'pistol'):
+    jobs.append((f'{GEN}/Items/item_{name}.png', f'Art/Items/item_{name}.png'))
+
 BG = f'{SRC}/background-elements/PNG'
 for k in range(3):
     jobs.append((f'{GEN}/Island/palm{k}.png', f'Art/Island/palm{k}.png'))

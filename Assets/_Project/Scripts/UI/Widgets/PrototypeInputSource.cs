@@ -27,6 +27,7 @@ namespace MiniBrawl.UI.Widgets
             float moveX = 0f;
             bool jetpack = false;
             bool fire = false;
+            bool swap = false;
 
             var pad = Gamepad.current;
             if (pad != null)
@@ -37,6 +38,9 @@ namespace MiniBrawl.UI.Widgets
 
                 // Face button / trigger stay wired up for a real controller.
                 jetpack |= pad.buttonSouth.isPressed || pad.rightTrigger.isPressed;
+
+                // The on-screen swap button drives this same virtual control.
+                swap |= pad.buttonWest.isPressed;
 
                 // §14 item 3: the aim stick also pulls the trigger.
                 Vector2 aimStick = pad.rightStick.ReadValue();
@@ -66,6 +70,7 @@ namespace MiniBrawl.UI.Widgets
                 if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) moveX -= 1f;
                 if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) moveX += 1f;
                 jetpack |= keyboard.spaceKey.isPressed || keyboard.wKey.isPressed;
+                swap |= keyboard.qKey.isPressed || keyboard.tabKey.isPressed;
             }
 
             moveX = Mathf.Clamp(moveX, -1f, 1f);
@@ -73,6 +78,7 @@ namespace MiniBrawl.UI.Widgets
             byte buttons = 0;
             if (jetpack) buttons |= PlayerInput.BtnJetpack;
             if (fire) buttons |= PlayerInput.BtnFire;
+            if (swap) buttons |= PlayerInput.BtnSwitch;
 
             return new PlayerInput
             {
