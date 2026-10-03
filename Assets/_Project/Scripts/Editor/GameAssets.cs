@@ -64,9 +64,18 @@ public static class GameAssets
     /// FullRect is not cosmetic: a tiled SpriteRenderer silently refuses to tile a sprite with
     /// the default tight mesh.
     /// </summary>
-    public static Sprite Tile() =>
-        ArtImport.Sprite($"{k_Art}/Tiles/platform.png", 140f, new Vector2(0.5f, 0.5f),
+    /// <summary>
+    /// A level tile. 128 pixels to the unit puts a 64px tile at half a world unit — a third of a
+    /// player's height, which is the scale that lets a ledge be one tile and still look deliberate.
+    /// FullRect is not cosmetic: a tiled SpriteRenderer silently refuses to tile a tight mesh.
+    /// </summary>
+    public static Sprite Tile(string name) =>
+        ArtImport.Sprite($"{k_Art}/Tiles/{name}.png", 128f, new Vector2(0.5f, 0.5f),
                          fullRect: true);
+
+    /// <summary>A parallax band. Low pixels-per-unit because these span the whole arena.</summary>
+    public static Sprite Backdrop(string name) =>
+        ArtImport.Sprite($"{k_Art}/Tiles/{name}.png", 10f, new Vector2(0.5f, 0f), maxSize: 1024);
 
     /// <summary>Island scenery: palms, grass tufts, clouds. Pivoted centrally; the builder
     /// positions them by their footing.</summary>

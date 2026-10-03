@@ -22,9 +22,12 @@ namespace MiniBrawl.Gameplay.Tests
     {
         const string k_Scene = "Assets/_Project/Scenes/20_Network.unity";
 
-        /// <summary>Things a thumb aims at. Overlapping any two of these is a bug.</summary>
+        /// <summary>
+        /// Things a thumb aims at, plus the status panel — it takes no input, but a readout
+        /// underneath a thumb is a readout nobody can see.
+        /// </summary>
         static readonly string[] k_Touchable =
-            { "LeftStick", "RightStick", "SwapButton", "ReadyButton", "LeaveButton" };
+            { "LeftStick", "RightStick", "SwapButton", "ReadyButton", "LeaveButton", "StatusPanel" };
 
         /// <summary>
         /// Leaves an empty scene behind.

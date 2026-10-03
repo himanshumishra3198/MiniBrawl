@@ -311,6 +311,8 @@ public static class NetworkSceneBuilder
             new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(74f, 74f));
         swapIcon.raycastTarget = false;
 
+        BuildStatusPanel(canvasGo, canvas);
+
         var matchHud = canvasGo.AddComponent<MatchHud>();
         matchHud.LeaveButton = leaveButton;
         matchHud.Banner = banner;
@@ -318,6 +320,65 @@ public static class NetworkSceneBuilder
         matchHud.KillFeed = killFeed;
         matchHud.ReadyButton = readyButton;
         matchHud.ReadyLabel = readyLabel;
+    }
+
+    /// <summary>
+    /// Health, fuel and weapon, above the move stick.
+    ///
+    /// Placed by the left thumb rather than in a corner: these are the numbers you check while
+    /// moving, and the eye is already near that half of the screen. Clear of the stick itself,
+    /// which HudLayoutTests enforces.
+    /// </summary>
+    static void BuildStatusPanel(GameObject canvasGo, Transform canvas)
+    {
+        Sprite square = PrototypeSceneBuilder.EnsureSquareSprite();
+
+        Image panel = PrototypeSceneBuilder.MakeImage("StatusPanel", canvas, GameAssets.Ui("button_wide"),
+            new Color(0.05f, 0.07f, 0.10f, 0.55f), new Vector2(0f, 0f), new Vector2(300f, 575f),
+            new Vector2(430f, 150f));
+        panel.raycastTarget = false;
+
+        var group = panel.gameObject.AddComponent<CanvasGroup>();
+        group.interactable = false;
+        group.blocksRaycasts = false;
+
+        Image health = Bar(panel.transform, "Health", square, new Vector2(0f, 38f));
+        Image fuel = Bar(panel.transform, "Fuel", square, new Vector2(0f, -4f));
+
+        Text weapon = PrototypeSceneBuilder.Label("Weapon", panel.transform, 28, TextAnchor.MiddleLeft);
+        var weaponRt = weapon.rectTransform;
+        weaponRt.anchorMin = weaponRt.anchorMax = new Vector2(0.5f, 0.5f);
+        weaponRt.anchoredPosition = new Vector2(-160f, -46f);
+        weaponRt.sizeDelta = new Vector2(360f, 34f);
+        weapon.alignment = TextAnchor.MiddleLeft;
+
+        var status = canvasGo.AddComponent<PlayerStatusHud>();
+        status.HealthFill = health;
+        status.FuelFill = fuel;
+        status.WeaponLabel = weapon;
+        status.Group = group;
+    }
+
+    /// <summary>A filled bar on a dark trough.</summary>
+    static Image Bar(Transform parent, string name, Sprite square, Vector2 offset)
+    {
+        Image trough = PrototypeSceneBuilder.MakeImage($"{name}Trough", parent, square,
+            new Color(0.02f, 0.03f, 0.04f, 0.8f), new Vector2(0.5f, 0.5f), offset,
+            new Vector2(360f, 30f));
+        trough.raycastTarget = false;
+
+        Image fill = PrototypeSceneBuilder.MakeImage("Fill", trough.transform, square,
+            Color.white, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        PrototypeSceneBuilder.Stretch(fill.rectTransform);
+        fill.raycastTarget = false;
+
+        // Filled rather than scaled: a filled Image empties from one end, where scaling a
+        // transform would shrink the bar towards its middle from both sides.
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fill.fillAmount = 1f;
+        return fill;
     }
 
     static void Anchor(RectTransform rt, Vector2 anchor, Vector2 position, Vector2 dimensions)

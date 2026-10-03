@@ -32,8 +32,11 @@ for i in range(6):
 
 # Level surface. Tiled across each block rather than stretched, and tinted dark at runtime:
 # Kenney's tiles are light, and the level has to stay darker than the players standing on it.
-TILES = f'{SRC}/platformer-art-deluxe/Base pack/Tiles'
-jobs.append((f'{TILES}/castleCenter.png', 'Art/Tiles/platform.png'))
+# The tileset is drawn by tools/tiles.py. Kenney's castle tile was one square
+# repeated flat; ground needs a surface, ends, and more than one tile of variation.
+for name in ('ground_top', 'ground_fill', 'edge_left', 'edge_right',
+             'rock_a', 'rock_b', 'hills_far', 'hills_near', 'sea'):
+    jobs.append((f'{GEN}/Tiles/{name}.png', f'Art/Tiles/{name}.png'))
 
 # Island dressing. Palms are drawn by tools/island.py because every one of the
 # thirty-five trees in Kenney's background pack is a conifer, a cactus or a round

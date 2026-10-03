@@ -259,6 +259,8 @@ public static class PrototypeSceneBuilder
         var decor = new GameObject("Island").transform;
         decor.SetParent(root, false);
 
+        BuildBackdrop(decor);
+
         // Standing on the floor and on the ledges. Sorted in front of the terrain they stand on
         // and behind the players, so nobody is ever hidden by scenery.
         Palm(decor, 0, new Vector2(-19f, -10.5f), 2.6f);
@@ -283,6 +285,48 @@ public static class PrototypeSceneBuilder
         Cloud(decor, 0, new Vector2(-13f, 8.5f), 3.2f);
         Cloud(decor, 1, new Vector2(3f, 9.5f), 4.0f);
         Cloud(decor, 2, new Vector2(15f, 7.5f), 2.8f);
+    }
+
+    /// <summary>
+    /// Sea and two bands of hills behind the arena.
+    ///
+    /// Depths are spread rather than evenly spaced: the gap between the near hills and the level
+    /// does most of the work, because that is the one a player sees move against something solid.
+    /// Two layers at 0.55 and 0.75 would read as a single sheet.
+    ///
+    /// The far band is darker than the near one, which inverts the usual rule. Haze pulls distant
+    /// things towards the colour of the sky, and this sky is a dark dusk blue.
+    /// </summary>
+    static void BuildBackdrop(Transform parent)
+    {
+        Band(parent, "Sea", "sea", footing: -12.5f, width: 86f, depth: 0.25f, order: -40);
+        Band(parent, "HillsNear", "hills_near", footing: -9.5f, width: 78f, depth: 0.5f, order: -45);
+        Band(parent, "HillsFar", "hills_far", footing: -7.5f, width: 96f, depth: 0.72f, order: -50);
+    }
+
+    static void Band(Transform parent, string name, string sprite, float footing, float width,
+                     float depth, int order)
+    {
+        Sprite art = GameAssets.Backdrop(sprite);
+        if (art == null) return;
+
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = art;
+        sr.sortingOrder = order;
+
+        /* Scaled from the sprite's own size so the band is as wide as asked for whatever the
+         * source happens to be. Wider than the arena on purpose: a layer that drifts with the
+         * camera has to cover the arena plus however far it drifts, or its edge walks into view.
+         *
+         * Pivoted at the bottom, so "footing" is where the band sits rather than its centre. */
+        float scale = width / art.bounds.size.x;
+        go.transform.localScale = new Vector3(scale, scale, 1f);
+        go.transform.position = new Vector3(0f, footing, 0f);
+
+        go.AddComponent<ParallaxLayer>().Depth = depth;
     }
 
     static void Palm(Transform parent, int variant, Vector2 footing, float height)
@@ -325,37 +369,52 @@ public static class PrototypeSceneBuilder
         go.transform.SetParent(parent, false);
         go.transform.position = pos;
 
-        /* Unit scale with the size on the renderer, not a squashed transform. Scaling a transform
-         * stretches one tile over the whole block; SpriteDrawMode.Tiled repeats it instead, which
-         * is what makes a 26-unit floor look like a floor rather than one enormous brick. */
+        // Unit scale with the size on the renderers, not a squashed transform: scaling stretches
+        // one tile over the whole block, where Tiled repeats it.
+        go.AddComponent<BoxCollider2D>().size = size;
+
+        /* Built from four pieces rather than one repeated square: a dirt body, a grass surface
+         * along the top, and a rounded cap at each end. A platform drawn as a single tiled sprite
+         * has no surface and no ends, which is what made the level read as a stack of slabs.
+         *
+         * All of it is children of the collider rather than baked into it — scenery that changed
+         * where you could stand would be a bug, not decoration. */
+        Slab(go.transform, "Fill", GameAssets.Tile("ground_fill"), Vector2.zero, size, 0);
+
+        bool tall = size.y > size.x;      // a wall, not a platform
+        if (tall)
+        {
+            // Walls get no grass: a green line down a cliff face reads as moss, and these run
+            // from the floor to the ceiling where no sunlight story makes sense.
+            return;
+        }
+
+        const float surface = 0.5f;       // one tile of grass-over-dirt
+        float cap = Mathf.Min(0.25f, size.x * 0.2f);
+
+        Slab(go.transform, "Surface", GameAssets.Tile("ground_top"),
+             new Vector2(0f, size.y * 0.5f - surface * 0.5f), new Vector2(size.x, surface), 1);
+
+        Slab(go.transform, "CapL", GameAssets.Tile("edge_left"),
+             new Vector2(-size.x * 0.5f + cap * 0.5f, 0f), new Vector2(cap, size.y), 2);
+
+        Slab(go.transform, "CapR", GameAssets.Tile("edge_right"),
+             new Vector2(size.x * 0.5f - cap * 0.5f, 0f), new Vector2(cap, size.y), 2);
+    }
+
+    /// <summary>One tiled piece of a block.</summary>
+    static void Slab(Transform parent, string name, Sprite sprite, Vector2 offset, Vector2 size, int order)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = offset;
+
         var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = GameAssets.Tile();
+        sr.sprite = sprite;
         sr.drawMode = SpriteDrawMode.Tiled;
         sr.tileMode = SpriteTileMode.Continuous;
         sr.size = size;
-
-        // Kenney's tiles are pale. Tinted to the colour the level already was, so the arena gains
-        // surface detail without the players losing contrast against it.
-        sr.color = k_LevelColor;
-
-        go.AddComponent<BoxCollider2D>().size = size;
-
-        /* A strip of grass along the top edge. This is what turns a grey slab into ground, and it
-         * is drawn as a child rather than baked into the tile so the collider stays exactly the
-         * block — scenery that changed where you could stand would be a bug, not decoration. */
-        if (size.x < 2f) return;      // walls get no cap; it would look like moss on a cliff face
-
-        var cap = new GameObject("Grass");
-        cap.transform.SetParent(go.transform, false);
-        cap.transform.localPosition = new Vector3(0f, size.y * 0.5f - 0.06f, 0f);
-
-        var capRenderer = cap.AddComponent<SpriteRenderer>();
-        capRenderer.sprite = GameAssets.Tile();
-        capRenderer.drawMode = SpriteDrawMode.Tiled;
-        capRenderer.tileMode = SpriteTileMode.Continuous;
-        capRenderer.size = new Vector2(size.x, 0.22f);
-        capRenderer.color = k_GrassColor;
-        capRenderer.sortingOrder = 1;
+        sr.sortingOrder = order;
     }
 
     internal static void BuildTargets(Sprite square, int hittableLayer)
